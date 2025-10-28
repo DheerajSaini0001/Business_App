@@ -7,6 +7,8 @@ import DashboardScreen from "./components/DashboardScreen";
 import Navbar from "./components/Navbar";
 import HomeScreen from "./components/HomeScreen";
 import UserSignupScreen from "./components/UserSignup";
+import AdminDashboardScreen from "./components/AdminDashboard";
+import UserDetailScreen from "./components/UserDetail";
 
 
 const Stack = createNativeStackNavigator();
@@ -24,6 +26,9 @@ export default function App() {
         <Stack.Screen name="userLogin" component={UserLoginScreen} />
         <Stack.Screen name="adminLogin" component={AdminLoginScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen name="userDetail" component={UserDetailScreen} />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );
