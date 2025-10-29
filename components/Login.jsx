@@ -8,10 +8,15 @@ import {
   StyleSheet,
   Alert 
 } from "react-native";
+// Import AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// Import the specific icons from lucide-react-native
+import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function LoginScreen({ navigation }) {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const handleChange = (key, value) => {
     setFormData({ ...formData, [key]: value });
@@ -36,9 +41,7 @@ export default function LoginScreen({ navigation }) {
       if (response.ok) {
         Alert.alert("Success 🎉", "Login successful!");
         // Store token locally
-        // You can use AsyncStorage for persistence
-        // import AsyncStorage from '@react-native-async-storage/async-storage';
-        // await AsyncStorage.setItem("token", data.token);
+        await AsyncStorage.setItem("token", data.token);
 
         navigation.navigate("Dashboard");
       } else {
@@ -54,28 +57,45 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>User Login</Text>
 
-      <TextInput
-        placeholder="Email Address"
-        value={formData.email}
-        onChangeText={(text) => handleChange("email", text)}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        style={styles.input}
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          placeholder="Enter your email"
+          value={formData.email}
+          onChangeText={(text) => handleChange("email", text)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          style={styles.input}
+        />
+      </View>
 
-      <TextInput
-        placeholder="Password"
-        value={formData.password}
-        onChangeText={(text) => handleChange("password", text)}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-        <Text style={styles.link}>Forgot Password?</Text>
-      </TouchableOpacity>
+      {/* --- MODIFIED PASSWORD FIELD SECTION --- */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.passwordInputContainer}>
+          <TextInput
+            placeholder="Enter your password"
+            value={formData.password}
+            onChangeText={(text) => handleChange("password", text)}
+            secureTextEntry={!showPassword} // Conditionally set secureTextEntry
+            style={styles.passwordInput}
+          />
+          <TouchableOpacity 
+            onPress={() => setShowPassword(!showPassword)} 
+            style={styles.passwordVisibilityToggle}
+          >
+            {/* Conditionally render the Lucide icons */}
+            {showPassword ? (
+              <Eye color="#888" size={20} />
+            ) : (
+              <EyeOff color="#888" size={20} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+      {/* --- END OF MODIFICATION --- */}
 
       <TouchableOpacity
         style={[styles.button, loading && { opacity: 0.6 }]}
@@ -106,27 +126,49 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 30,
   },
-  input: {
+  inputGroup: {
+    width: "100%",
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  input: { // Regular input style (for email)
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
     padding: 12,
-    marginBottom: 15,
   },
+  // --- STYLES FOR PASSWORD FIELD (no changes needed here) ---
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    paddingRight: 12, // Space for the icon
+  },
+  passwordInput: {
+    flex: 1, // Allow TextInput to take available space
+    padding: 12,
+  },
+  passwordVisibilityToggle: {
+    padding: 10, // Make the touchable area larger
+  },
+  // --- END STYLES ---
   button: {
     backgroundColor: "#3b82f6",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
+    marginTop: 20, // Added margin for better spacing
   },
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
-  },
-  link: {
-    textAlign: "right",
-    color: "#3b82f6",
-    marginBottom: 20,
   },
 });
