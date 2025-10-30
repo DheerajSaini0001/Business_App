@@ -8,10 +8,9 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
-  Alert, // <--- 1. 'Alert' ko import karein
+  Alert, // 1. 'Alert' ko import kiya gaya
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import AsyncStorage from "@react-native-async-storage/async-storage"; // 2. AsyncStorage ko import kiya gaya
 // Helper functions (No change here)
 const formatDateDMY = (isoString) => {
   if (!isoString) return "-";
@@ -23,6 +22,7 @@ const formatDateDMY = (isoString) => {
 };
 
 const format12Hour = (isoString) => {
+// ... existing code ...
   if (!isoString) return "-";
   return new Date(isoString).toLocaleTimeString([], {
     hour: "numeric",
@@ -31,7 +31,8 @@ const format12Hour = (isoString) => {
   });
 };
 
-const API_BASE_URL = Platform.OS === 'android' ? 'https://saini-record-management.onrender.com' : 'https://saini-record-management.onrender.com';
+// API URL ko setup kiya gaya
+const API_BASE_URL = "https://saini-record-management.onrender.com";
 
 export default function UserDashboard({ navigation }) {
   const [user, setUser] = useState(null);
@@ -45,8 +46,9 @@ export default function UserDashboard({ navigation }) {
         const token = await AsyncStorage.getItem("token"); 
         
         if (!token) {
-          console.log("Token nahi mila, redirecting to home");
-          navigation.reset({ index: 0, routes: [{ name: 'Home' }] }); 
+          console.log("Token nahi mila, redirecting to homeScreen");
+          // FIX: 'Home' ko 'homeScreen' kiya (App.js se match karne ke liye)
+          navigation.reset({ index: 0, routes: [{ name: 'homeScreen' }] }); 
           setLoading(false);
           return;
         }
@@ -55,8 +57,7 @@ export default function UserDashboard({ navigation }) {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // --- 2. Robust Error Check ---
-        // Agar server 401/403 (unauthorized) ya 500 error bhejta hai
+        // Agar token invalid/expire ho gaya hai (jaise 401 error)
         if (!userRes.ok) {
             throw new Error("Invalid token or Server Error");
         }
@@ -68,6 +69,7 @@ export default function UserDashboard({ navigation }) {
         }
         setUser(userData.user);
 
+        // Session data fetch karein
         const sessionRes = await fetch(
           `${API_BASE_URL}/session/${userData.user._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -77,13 +79,14 @@ export default function UserDashboard({ navigation }) {
 
       } catch (err) {
         console.error("Fetch error:", err);
-        // --- 3. AUTO-LOGOUT on Error ---
-        // Agar kuch bhi fail hota hai (jaise token expire), toh user ko logout kar dein
+        // --- 3. AUTO-LOGOUT (Jab kuch bhi fail ho) ---
+        // Agar token expire ho gaya hai, toh user ko automatically logout kar dein
         try {
             await AsyncStorage.removeItem("token");
+            // FIX: 'Home' ko 'homeScreen' kiya
             navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' }], // Ensure 'Home' is correct
+                routes: [{ name: 'homeScreen' }], 
             });
         } catch (logoutError) {
             console.error("Auto-logout failed:", logoutError);
@@ -97,28 +100,31 @@ export default function UserDashboard({ navigation }) {
     fetchUserAndSession();
   }, [navigation]);
 
-  // --- 4. Logout function with Confirmation ---
+  // --- 4. Logout Function ---
+  // Yeh function 'Logout' button dabane par chalega
   const handleLogout = () => {
     Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
+      "Logout", // Title
+      "Are you sure you want to log out?", // Message
       [
+        // Button 1: Cancel
         {
           text: "Cancel",
           style: "cancel",
         },
+        // Button 2: Logout
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
-              // 1. AsyncStorage se token remove karein
+              // 1. Storage se token remove karein
               await AsyncStorage.removeItem("token");
               
-              // 2. User ko Home screen par reset karein
+              // 2. User ko 'homeScreen' par waapas bhej dein
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'homeScreen' }], // Make sure 'Home' is your login/home screen name
+                routes: [{ name: 'homeScreen' }], // (App.js se match karta hua)
               });
             } catch (error) {
               console.error("Logout ke time error:", error);
@@ -127,16 +133,18 @@ export default function UserDashboard({ navigation }) {
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: true } // Alert ke bahar click karke band kar sakte hain
     );
   };
 
 
   const toggleRecords = (sessionId) => {
+
     setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   };
 
   if (loading) {
+
     return (
       <SafeAreaView style={styles.centerScreen}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -145,9 +153,9 @@ export default function UserDashboard({ navigation }) {
     );
   }
 
-  // Ab 'user' ke null hone par auto-logout handle ho raha hai,
-  // lekin yeh ek fallback ki tarah rakhein
+  // Fallback (agar user fetch fail ho jaaye auto-logout se pehle)
   if (!user) {
+// ... existing code ...
     return (
       <SafeAreaView style={styles.centerScreen}>
         <Text style={styles.errorText}>Loading failed. Redirecting...</Text>
@@ -163,11 +171,12 @@ export default function UserDashboard({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
             <Text style={styles.title}>Welcome, {user.fullName}</Text>
-            {/* Logout Button (onPress handleLogout call karega) */}
+            {/* 5. Logout Button ko onPress diya gaya */}
             <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
               <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
+
           <View style={styles.infoBox}>
             <Text style={styles.infoLabel}>Email:</Text>
             <Text style={styles.infoValue}>{user.email}</Text>
@@ -182,6 +191,7 @@ export default function UserDashboard({ navigation }) {
         <Text style={styles.subTitle}>Your Seasons</Text>
         
         {session.length === 0 ? (
+// ... existing code ...
           <View style={styles.card}>
             <Text style={styles.noSessionsText}>No seasons yet.</Text>
           </View>
@@ -189,9 +199,9 @@ export default function UserDashboard({ navigation }) {
           <View style={styles.tableContainer}>
             {/* Table Header */}
             <View style={[styles.tableRow, styles.tableHeaderRow]}>
+{/* ... existing code ... */}
               <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>NO.</Text>
               <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Start</Text>
-              <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Stop</Text>
               <Text style={[styles.tableHeaderCell, { flex: 2.5 }]}>Duration</Text>
               <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Cost</Text>
               <Text style={[styles.tableHeaderCell, { flex: 1.8, textAlign: 'right' }]}>Rec</Text>
@@ -199,12 +209,13 @@ export default function UserDashboard({ navigation }) {
             
             {/* Table Body */}
             {session.map((sessionItem) => (
+// ... existing code ...
               <React.Fragment key={sessionItem._id}>
                 <TouchableOpacity onPress={() => toggleRecords(sessionItem._id)} style={styles.touchableRow}>
                   <View style={styles.tableRow}>
                     <Text style={[styles.tableCell, styles.boldText, { flex: 1.2 }]}>{sessionItem.sessionNo}</Text>
                     <Text style={[styles.tableCell, { flex: 2 }]}>{formatDateDMY(sessionItem.startTime)}</Text>
-                    <Text style={[styles.tableCell, { flex: 2 }]}>{formatDateDMY(sessionItem.stopTime)}</Text>
+                    
                     <Text style={[styles.tableCell, { flex: 2.5 }]}>{sessionItem.totalDurationReadable}</Text>
                     <Text style={[styles.tableCell, styles.boldText, { flex: 1.5 }]}>₹{sessionItem.totalCost}</Text>
                     <Text style={[styles.tableCell, { flex: 1.8, color: '#2563EB', fontWeight: '600', textAlign: 'right' }]}>
@@ -215,6 +226,7 @@ export default function UserDashboard({ navigation }) {
                 
                 {/* Collapsible Inner Table */}
                 {openRecords[sessionItem._id] && (
+// ... existing code ...
                   <View style={styles.collapsibleArea}>
                     <Text style={styles.recordsTitle}>Session Records</Text>
                     <View style={[styles.innerTableRow, styles.innerTableHeaderRow]}>
@@ -247,17 +259,20 @@ export default function UserDashboard({ navigation }) {
 }
 
 // --- Styles ---
-// (Styles me koi change nahi hai, woh perfect hain)
+// (Styles me koi change nahi hai)
 const styles = StyleSheet.create({
+// ... existing code ...
   safeArea: {
     flex: 1,
     backgroundColor: "#f3f4f6",
   },
   container: {
+// ... existing code ...
     padding: 16,
     paddingBottom: 40,
   },
   centerScreen: {
+// ... existing code ...
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -265,16 +280,19 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
+// ... existing code ...
     marginTop: 10,
     fontSize: 16,
     color: "#4B5563",
   },
   errorText: {
+// ... existing code ...
     fontSize: 16,
     color: "#DC2626",
     textAlign: 'center',
   },
   header: {
+// ... existing code ...
     padding: 20,
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -286,43 +304,51 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTopRow: {
+// ... existing code ...
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
   title: {
+// ... existing code ...
     fontSize: 24, 
     fontWeight: "bold",
     color: "#111827",
     flex: 1, 
   },
   logoutButton: {
+// ... existing code ...
     backgroundColor: '#EF4444', // red-500
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   logoutButtonText: {
+// ... existing code ...
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
   },
   infoBox: {
+// ... existing code ...
     flexDirection: 'row',
     marginBottom: 4,
   },
   infoLabel: {
+// ... existing code ...
     fontSize: 16,
     color: "#4B5563",
     fontWeight: '600',
     marginRight: 5,
   },
   infoValue: {
+// ... existing code ...
     fontSize: 16,
     color: "#1F2937",
   },
   subTitle: {
+// ... existing code ...
     fontSize: 22,
     fontWeight: "600",
     color: "#111827",
@@ -330,6 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
+// ... existing code ...
      backgroundColor: '#ffffff',
      borderRadius: 12,
      padding: 20,
@@ -341,10 +368,12 @@ const styles = StyleSheet.create({
      elevation: 2,
   },
   noSessionsText: {
+// ... existing code ...
     fontSize: 16,
     color: "#6B7280",
   },
   tableContainer: {
+// ... existing code ...
     backgroundColor: "#ffffff",
     borderRadius: 12,
     shadowColor: "#000",
@@ -355,11 +384,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tableHeaderRow: {
+// ... existing code ...
     backgroundColor: "#2563EB",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   tableHeaderCell: {
+// ... existing code ...
     color: "#ffffff",
     fontWeight: "600",
     fontSize: 13,
@@ -368,9 +399,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   touchableRow: {
+// ... existing code ...
     backgroundColor: 'transparent',
   },
   tableRow: {
+// ... existing code ...
     flexDirection: "row",
     alignItems: 'center',
     paddingHorizontal: 10,
@@ -379,46 +412,55 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   tableCell: {
+// ... existing code ...
     fontSize: 14,
     color: "#374151",
   },
   boldText: {
+// ... existing code ...
     fontWeight: '600',
   },
   collapsibleArea: {
+// ... existing code ...
     backgroundColor: "#f9fafb",
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
   recordsTitle: {
+// ... existing code ...
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 10,
     color: '#111827'
   },
   innerTableHeaderRow: {
+// ... existing code ...
     backgroundColor: "#E5E7EB",
     borderRadius: 6,
   },
   innerTableRow: {
+// ... existing code ...
     flexDirection: "row",
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
   innerTableHeaderCell: {
+// ... existing code ...
     flex: 1,
     fontWeight: "600",
     fontSize: 13,
     color: "#374151",
   },
   innerTableCell: {
+// ... existing code ...
     flex: 1,
     fontSize: 13,
     color: "#4B5563",
   },
   noRecordsText: {
+// ... existing code ...
     textAlign: 'center',
     padding: 10,
     fontSize: 13,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,10 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Alert, // 1. Alert ko import karein
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage'; // 2. AsyncStorage ko import karein
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -15,31 +17,88 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const navigation = useNavigation();
 
+  // --- 3. UPDATED fetchUsers ---
   const fetchUsers = async () => {
     try {
-      const res = await fetch("https://saini-record-management.onrender.com/admin/users");
+      // Token ko storage se get karein
+      const token = await AsyncStorage.getItem("adminToken");
+      if (!token) {
+        // Agar token nahi hai, toh auto-logout
+        performLogout(); 
+        return;
+      }
+
+      const res = await fetch(
+        "https://saini-record-management.onrender.com/admin/users",
+        {
+          // Server ko token bhejein
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      // Agar token invalid ya expire ho gaya hai
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+           throw new Error("Invalid token");
+        }
+        throw new Error("Server error");
+      }
+
       const data = await res.json();
       setUsers(data.users || []);
+
     } catch (err) {
       console.error(err);
       setError("Failed to load users.");
+      // Agar token invalid hai, toh auto-logout
+      if (err.message === "Invalid token") {
+          performLogout();
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Jab component load ho, users fetch karein
     fetchUsers();
   }, []);
 
+  // --- 4. UPDATED handleLogout (Confirmation ke saath) ---
   const handleLogout = () => {
-    // Remove token if stored (you can use AsyncStorage)
-    // AsyncStorage.removeItem("adminToken");
-     navigation.reset({
-                index: 0,
-                routes: [{ name: 'homeScreen' }], // Make sure 'Home' is your login/home screen name
-              });
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to log out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: performLogout, // Asli logout function ko call karein
+        },
+      ],
+      { cancelable: true }
+    );
   };
+
+  // Yeh alag se async function banaya
+  const performLogout = async () => {
+    try {
+      // Storage se 'adminToken' remove karein
+      await AsyncStorage.removeItem("adminToken");
+      
+      // 'homeScreen' par reset karein
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'homeScreen' }], 
+      });
+    } catch (e) {
+      console.error("Failed to remove admin token", e);
+      Alert.alert("Error", "Logout failed.");
+    }
+  };
+  // --- End of Logout Logic ---
+
 
   if (loading)
     return (
@@ -98,7 +157,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f3f3f3",
     paddingHorizontal: 16,
-    paddingTop: 20,
+    // Add safe area padding (StatusBar height se aapka App.js manage kar raha hai)
+    paddingTop: 80, // Navbar ki height ke hisaab se adjust karein
   },
   header: {
     flexDirection: "row",
@@ -112,7 +172,7 @@ const styles = StyleSheet.create({
     color: "#4a148c",
   },
   logoutButton: {
-    backgroundColor: "#4a148c",
+    backgroundColor: "#c1121f", // Logout ke liye Red color
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,

@@ -46,6 +46,7 @@ export default function LoginScreen({ navigation }) {
         Alert.alert("Success 🎉", "Login successful!");
         await AsyncStorage.setItem("token", data.token);
         
+        
         // This reset is correct for logging in
         navigation.reset({
                index: 0,
