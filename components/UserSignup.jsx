@@ -95,60 +95,75 @@ export default function UserSignup({ navigation }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>Create an Account</Text>
 
-      <Text style={styles.message}>{message}</Text>
+      {/* This message text will appear if you set the 'message' state */}
+      {message ? <Text style={styles.message}>{message}</Text> : null}
 
+      {/* --- Full Name --- */}
+      <Text style={styles.label}>Full Name</Text>
       <TextInput
         style={styles.input}
-        placeholder="Full Name"
+        placeholder="Enter your full name"
         value={formData.fullName}
         onChangeText={(text) => handleChange("fullName", text)}
       />
 
+      {/* --- Username --- */}
+      <Text style={styles.label}>Username</Text>
       <TextInput
         style={styles.input}
-        placeholder="Username"
+        placeholder="Choose a username"
         value={formData.username}
         onChangeText={(text) => handleChange("username", text)}
       />
 
+      {/* --- Email --- */}
+      <Text style={styles.label}>Email Address</Text>
       <TextInput
         style={styles.input}
-        placeholder="Email Address"
+        placeholder="Enter your email"
         keyboardType="email-address"
+        autoCapitalize="none"
         value={formData.email}
         onChangeText={(text) => handleChange("email", text)}
       />
 
+      {/* --- Phone --- */}
+      <Text style={styles.label}>Phone Number</Text>
       <TextInput
         style={styles.input}
-        placeholder="Phone Number"
+        placeholder="Enter your phone number"
         keyboardType="phone-pad"
         value={formData.phone}
         onChangeText={(text) => handleChange("phone", text)}
       />
 
+      {/* --- Password --- */}
+      <Text style={styles.label}>Password</Text>
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="Create a password"
         secureTextEntry
         value={formData.password}
         onChangeText={(text) => handleChange("password", text)}
       />
 
+      {/* --- Confirm Password --- */}
+      <Text style={styles.label}>Confirm Password</Text>
       <TextInput
         style={styles.input}
-        placeholder="Confirm Password"
+        placeholder="Confirm your password"
         secureTextEntry
         value={formData.confirmPassword}
         onChangeText={(text) => handleChange("confirmPassword", text)}
       />
 
-
       {/* Terms */}
       <View style={styles.termsContainer}>
         <Switch
-          value={formData.terms}
+          trackColor={{ false: "#767577", true: "#81b0ff" }}
+          thumbColor={formData.terms ? "#4a148c" : "#f4f3f4"}
           onValueChange={(val) => handleChange("terms", val)}
+          value={formData.terms}
         />
         <Text style={styles.termsText}>I agree to the terms & conditions</Text>
       </View>
@@ -190,14 +205,63 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#4a148c",
   },
+  // --- NEW STYLE for labels ---
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#333", // Dark grey for label
+  },
   input: {
     backgroundColor: "#fff",
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     borderRadius: 10,
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ccc",
+    fontSize: 16,
   },
+  termsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 25,
+    marginTop: 5, // Added some space above
+  },
+  termsText: {
+    marginLeft: 10,
+    color: "#555",
+    fontSize: 15,
+  },
+  button: {
+    backgroundColor: "#4a148c",
+    paddingVertical: 14,
+    borderRadius: 25,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  loginLink: {
+    textAlign: "center",
+    color: "#4a148c",
+    fontWeight: "500",
+    marginTop: 5,
+    fontSize: 15,
+  },
+  // Added a style for the 'message' text
+  message: {
+    textAlign: "center",
+    fontSize: 16,
+    color: "red", // Default to red for errors
+    marginBottom: 15,
+  },
+
+  // --- These styles were in your code but not used, ---
+  // --- I'm leaving them in case you need them later ---
   roleContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -220,32 +284,5 @@ const styles = StyleSheet.create({
   },
   activeRoleText: {
     color: "#fff",
-  },
-  termsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 25,
-  },
-  termsText: {
-    marginLeft: 10,
-    color: "#555",
-  },
-  button: {
-    backgroundColor: "#4a148c",
-    paddingVertical: 14,
-    borderRadius: 25,
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  loginLink: {
-    textAlign: "center",
-    color: "#4a148c",
-    fontWeight: "500",
-    marginTop: 5,
   },
 });

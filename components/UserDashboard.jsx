@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
-  Platform, // Platform ko import karein
+  Platform,
+  Alert, // <--- 1. 'Alert' ko import karein
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Helper functions (Ye same rahenge)
+// Helper functions (No change here)
 const formatDateDMY = (isoString) => {
   if (!isoString) return "-";
   const date = new Date(isoString);
@@ -30,12 +31,9 @@ const format12Hour = (isoString) => {
   });
 };
 
-// ⚠️ API URL ko platform ke hisaab se set karein
-// Android Emulator ke liye 10.0.2.2
-// iOS Simulator ke liye localhost
 const API_BASE_URL = Platform.OS === 'android' ? 'https://saini-record-management.onrender.com' : 'https://saini-record-management.onrender.com';
 
-export default function UserDashboard() {
+export default function UserDashboard({ navigation }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState([]);
@@ -44,11 +42,11 @@ export default function UserDashboard() {
   useEffect(() => {
     const fetchUserAndSession = async () => {
       try {
-        // 1. localStorage ki jagah AsyncStorage ka istemaal
         const token = await AsyncStorage.getItem("token"); 
         
         if (!token) {
-          console.log("Token nahi mila");
+          console.log("Token nahi mila, redirecting to home");
+          navigation.reset({ index: 0, routes: [{ name: 'Home' }] }); 
           setLoading(false);
           return;
         }
@@ -56,6 +54,13 @@ export default function UserDashboard() {
         const userRes = await fetch(`${API_BASE_URL}/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
+        // --- 2. Robust Error Check ---
+        // Agar server 401/403 (unauthorized) ya 500 error bhejta hai
+        if (!userRes.ok) {
+            throw new Error("Invalid token or Server Error");
+        }
+        
         const userData = await userRes.json();
         
         if (!userData.user) {
@@ -63,7 +68,6 @@ export default function UserDashboard() {
         }
         setUser(userData.user);
 
-        // Sirf user milne par hi session fetch karein
         const sessionRes = await fetch(
           `${API_BASE_URL}/session/${userData.user._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -73,19 +77,65 @@ export default function UserDashboard() {
 
       } catch (err) {
         console.error("Fetch error:", err);
+        // --- 3. AUTO-LOGOUT on Error ---
+        // Agar kuch bhi fail hota hai (jaise token expire), toh user ko logout kar dein
+        try {
+            await AsyncStorage.removeItem("token");
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }], // Ensure 'Home' is correct
+            });
+        } catch (logoutError) {
+            console.error("Auto-logout failed:", logoutError);
+        }
+        // ---------------------------------
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserAndSession();
-  }, []);
+  }, [navigation]);
+
+  // --- 4. Logout function with Confirmation ---
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to log out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. AsyncStorage se token remove karein
+              await AsyncStorage.removeItem("token");
+              
+              // 2. User ko Home screen par reset karein
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'homeScreen' }], // Make sure 'Home' is your login/home screen name
+              });
+            } catch (error) {
+              console.error("Logout ke time error:", error);
+              Alert.alert("Error", "Logout failed. Please try again.");
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
 
   const toggleRecords = (sessionId) => {
     setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   };
 
-  // Loading state
   if (loading) {
     return (
       <SafeAreaView style={styles.centerScreen}>
@@ -95,22 +145,29 @@ export default function UserDashboard() {
     );
   }
 
-  // User na milne par state
+  // Ab 'user' ke null hone par auto-logout handle ho raha hai,
+  // lekin yeh ek fallback ki tarah rakhein
   if (!user) {
     return (
       <SafeAreaView style={styles.centerScreen}>
-        <Text style={styles.errorText}>User not found. Please log in again.</Text>
+        <Text style={styles.errorText}>Loading failed. Redirecting...</Text>
+        <ActivityIndicator size="small" color="#4B5563" style={{marginTop: 10}} />
       </SafeAreaView>
     );
   }
 
-  // Main component render
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* User Info Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome, {user.fullName}</Text>
+          <View style={styles.headerTopRow}>
+            <Text style={styles.title}>Welcome, {user.fullName}</Text>
+            {/* Logout Button (onPress handleLogout call karega) */}
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.infoBox}>
             <Text style={styles.infoLabel}>Email:</Text>
             <Text style={styles.infoValue}>{user.email}</Text>
@@ -121,7 +178,7 @@ export default function UserDashboard() {
           </View>
         </View>
 
-        {/* Seasons Section */}
+        {/* Seasons Section (No change here) */}
         <Text style={styles.subTitle}>Your Seasons</Text>
         
         {session.length === 0 ? (
@@ -160,14 +217,12 @@ export default function UserDashboard() {
                 {openRecords[sessionItem._id] && (
                   <View style={styles.collapsibleArea}>
                     <Text style={styles.recordsTitle}>Session Records</Text>
-                    {/* Inner Table Header */}
                     <View style={[styles.innerTableRow, styles.innerTableHeaderRow]}>
                       <Text style={styles.innerTableHeaderCell}>Date</Text>
                       <Text style={styles.innerTableHeaderCell}>Start Time</Text>
                       <Text style={styles.innerTableHeaderCell}>Stop Time</Text>
                       <Text style={styles.innerTableHeaderCell}>Duration</Text>
                     </View>
-                    {/* Inner Table Body */}
                     {sessionItem.records.length > 0 ? (
                        sessionItem.records.map((record) => (
                         <View key={record._id} style={styles.innerTableRow}>
@@ -192,15 +247,15 @@ export default function UserDashboard() {
 }
 
 // --- Styles ---
-// React Native ke liye Stylesheet (Tailwind se convert karke)
+// (Styles me koi change nahi hai, woh perfect hain)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f3f4f6", // bg-gray-100
+    backgroundColor: "#f3f4f6",
   },
   container: {
-    padding: 16, // p-6 se thoda kam native ke liye
-    paddingBottom: 40, // Scroll content ke liye extra space
+    padding: 16,
+    paddingBottom: 40,
   },
   centerScreen: {
     flex: 1,
@@ -230,11 +285,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    color: "#111827", // text-gray-800
+  },
+  title: {
+    fontSize: 24, 
+    fontWeight: "bold",
+    color: "#111827",
+    flex: 1, 
+  },
+  logoutButton: {
+    backgroundColor: '#EF4444', // red-500
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
   },
   infoBox: {
     flexDirection: 'row',
@@ -242,7 +314,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: "#4B5563", // text-gray-600
+    color: "#4B5563",
     fontWeight: '600',
     marginRight: 5,
   },
@@ -252,8 +324,8 @@ const styles = StyleSheet.create({
   },
   subTitle: {
     fontSize: 22,
-    fontWeight: "600", // font-semibold
-    color: "#111827", // text-gray-800
+    fontWeight: "600",
+    color: "#111827",
     marginBottom: 12,
     paddingHorizontal: 4,
   },
@@ -270,7 +342,7 @@ const styles = StyleSheet.create({
   },
   noSessionsText: {
     fontSize: 16,
-    color: "#6B7280", // text-gray-500
+    color: "#6B7280",
   },
   tableContainer: {
     backgroundColor: "#ffffff",
@@ -280,17 +352,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden', // to clip borderRadius
+    overflow: 'hidden',
   },
   tableHeaderRow: {
-    backgroundColor: "#2563EB", // bg-blue-600
+    backgroundColor: "#2563EB",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   tableHeaderCell: {
     color: "#ffffff",
-    fontWeight: "600", // font-semibold
-    fontSize: 13, // text-sm
+    fontWeight: "600",
+    fontSize: 13,
     paddingHorizontal: 10,
     paddingVertical: 14,
     textTransform: "uppercase",
@@ -304,17 +376,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB", // divide-gray-200
+    borderBottomColor: "#E5E7EB",
   },
   tableCell: {
     fontSize: 14,
-    color: "#374151", // text-gray-700
+    color: "#374151",
   },
   boldText: {
     fontWeight: '600',
   },
   collapsibleArea: {
-    backgroundColor: "#f9fafb", // bg-gray-50 (thoda alag)
+    backgroundColor: "#f9fafb",
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -326,7 +398,7 @@ const styles = StyleSheet.create({
     color: '#111827'
   },
   innerTableHeaderRow: {
-    backgroundColor: "#E5E7EB", // bg-gray-200
+    backgroundColor: "#E5E7EB",
     borderRadius: 6,
   },
   innerTableRow: {

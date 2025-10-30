@@ -43,8 +43,11 @@ export default function AdminLogin({ navigation }) {
         Alert.alert("Success 🎉", "Login successful!");
         
         await AsyncStorage.setItem("adminToken", data.token);
+         navigation.reset({
+               index: 0,
+               routes: [{ name: 'adminDashboard' }], // Target screen ka naam
+        });
         
-        navigation.navigate("adminDashboard");
       } else {
         // ANY failed login (wrong email, wrong password, etc.)
         // will now show "invalid candidate"

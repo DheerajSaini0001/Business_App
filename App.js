@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  SafeAreaView,
-  StyleSheet,
-  Platform,
-  StatusBar,
-} from "react-native";
+import { StatusBar,View } from "react-native"; // <-- Import StatusBar
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Navbar from "./components/Navbar";
@@ -20,30 +15,29 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
+    
+    <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
+
+      <StatusBar 
+        barStyle="dark-content"
+      />
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={({ navigation, route }) => ({
             header: () => <Navbar navigation={navigation} title={route.name} />,
+            headerTransparent: true, 
           })}
         >
-          <Stack.Screen name="homeScreen" component={HomeScreen} />
-          <Stack.Screen name="userSignup" component={UserSignupScreen} />
-          <Stack.Screen name="userLogin" component={UserLoginScreen} />
-          <Stack.Screen name="adminLogin" component={AdminLoginScreen} />
-          <Stack.Screen name="Dashboard" component={UserDashboardScreen} />
-          <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} />
-          <Stack.Screen name="userDetail" component={UserDetailScreen} />
+          <Stack.Screen name="homeScreen" component={HomeScreen}  />
+          <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="userLogin" component={UserLoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Dashboard" component={UserDashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
-    </SafeAreaView>
+   
+      </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-  },
-});

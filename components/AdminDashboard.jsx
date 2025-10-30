@@ -35,7 +35,10 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     // Remove token if stored (you can use AsyncStorage)
     // AsyncStorage.removeItem("adminToken");
-    navigation.navigate("adminLogin");
+     navigation.reset({
+                index: 0,
+                routes: [{ name: 'homeScreen' }], // Make sure 'Home' is your login/home screen name
+              });
   };
 
   if (loading)
