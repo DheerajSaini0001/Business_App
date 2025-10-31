@@ -477,13 +477,13 @@ export default function UserDetail() {
     const newEntry = {
       userId: user._id,
       date: entryDate.toISOString(),
-      quantity: parseInt(entryQuantity, 10), // Convert to number
-      amount: parseFloat(entryAmount), // Convert to decimal number
+      value: parseInt(entryQuantity, 10), // This is the "value"
+      amount: parseFloat(entryAmount),
     };
 
     // 3. Save to API (This is a NEW endpoint you must create)
     try {
-      const res = await fetch(`${API_URL}/dailyentry/addManualEntry`, {
+      const res = await fetch(`${API_URL}/dailyentry/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEntry),
