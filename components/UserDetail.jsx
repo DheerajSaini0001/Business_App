@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   StyleSheet,
   SafeAreaView,
+  TextInput, // <-- Import TextInput
+  Button, // <-- Import Button (or just use TouchableOpacity)
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -80,12 +82,21 @@ export default function UserDetail() {
 
   const [openSession, setOpenSession] = useState({}); // Track toggle state
 
+  // --- NEW STATE FOR ENTRY FORM ---
+  const [entryDate, setEntryDate] = useState(new Date());
+  const [entryQuantity, setEntryQuantity] = useState('');
+  const [entryAmount, setEntryAmount] = useState('');
+  
+  // --- NEW STATE TO TOGGLE FORM VISIBILITY ---
+  const [isManualFormVisible, setIsManualFormVisible] = useState(false);
+
   // State for DateTimePicker
   const [isPickerVisible, setPickerVisible] = useState(false);
   const [pickerConfig, setPickerConfig] = useState({
     onConfirm: () => {},
     onCancel: () => {},
     date: new Date(),
+    mode: "datetime", // Add default mode
   });
 
   const COST_PER_HOUR = 150;
@@ -180,9 +191,11 @@ export default function UserDetail() {
   // --- DateTimePicker Handlers ---
   const hidePicker = () => setPickerVisible(false);
 
+  // --- UPDATED showPicker ---
   const showPicker = (config) => {
     setPickerConfig({
-      ...config,
+      mode: "datetime", // Default mode
+      ...config,        // Overwrite with provided config (if any)
       onCancel: hidePicker,
       onConfirm: (date) => {
         config.onConfirm(date);
@@ -448,6 +461,56 @@ export default function UserDetail() {
     }
   };
   
+  // --- NEW FUNCTION TO SAVE MANUAL ENTRY (UPDATED) ---
+  const handleSaveEntry = async () => {
+    // 1. Basic Validation
+    if (!entryQuantity || !entryAmount) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
+    }
+    if (!user?._id) {
+      Alert.alert("Error", "User ID not found.");
+      return;
+    }
+
+    // 2. Create the new entry object
+    const newEntry = {
+      userId: user._id,
+      date: entryDate.toISOString(),
+      quantity: parseInt(entryQuantity, 10), // Convert to number
+      amount: parseFloat(entryAmount), // Convert to decimal number
+    };
+
+    // 3. Save to API (This is a NEW endpoint you must create)
+    try {
+      const res = await fetch(`${API_URL}/dailyentry/addManualEntry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEntry),
+      });
+
+      if (res.ok) {
+        // 4. Give user feedback and clear the form
+        Alert.alert("Success", "Data saved successfully!");
+        setEntryDate(new Date());
+        setEntryQuantity("");
+        setEntryAmount("");
+        
+        // 5. Refresh the daily data list
+        fetchDailyData();
+
+        // --- HIDE FORM ON SUCCESS ---
+        setIsManualFormVisible(false);
+      } else {
+         const data = await res.json();
+         Alert.alert("Error", data.message || "Failed to save entry.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to save data.");
+      console.error(error);
+    }
+  };
+
   // --- Main Render ---
 
   // Note: The main 'loading' is now just for sessions
@@ -548,19 +611,96 @@ export default function UserDetail() {
             >
               <Text style={styles.btnText}>Stop Record</Text>
             </TouchableOpacity>
-          </View>):(<View style={{    backgroundColor: '#f9f9f9',   
-    borderRadius: 12,            
-    padding: 16,                
-    margin: 10,                  
-    shadowColor: '#000',          
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,  }}>
-            <TouchableOpacity style={styles.tankerBtn} onPress={handleTanker}>
-              <Text style={styles.btnText}>Add Tanker</Text>
-            </TouchableOpacity>
-          </View>)}
+          </View>):(
+          
+          // --- WRAP TANKER TAB CONTENT IN A VIEW ---
+          <View> 
+            <View style={{    backgroundColor: '#f9f9f9',   
+              borderRadius: 12,            
+              padding: 16,
+                            
+              margin: 10,                  
+              shadowColor: '#000',          
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 4,
+              elevation: 4,  }}>
+              <TouchableOpacity style={styles.tankerBtn} onPress={handleTanker}>
+                <Text style={styles.btnText}>Add Tanker</Text>
+              </TouchableOpacity>
+               {!isManualFormVisible ? (
+              // --- "Add Manually" Button ---
+              <View style={{ 
+                marginVertical:10
+                
+              }}>
+                <TouchableOpacity 
+                  style={styles.blueBtn} // NEW
+                  onPress={() => setIsManualFormVisible(true)}
+                >
+                  <Text style={styles.btnText}>Add Manually</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // --- NEW MANUAL ENTRY FORM ---
+              <View style={[styles.card,{marginVertical:20}]}>
+                <Text style={styles.name}>Add Manual Entry</Text>
+                
+                <Text style={styles.label}>Date</Text>
+                <TouchableOpacity 
+                  onPress={() => showPicker({
+                    mode: 'date', // Specify 'date' mode
+                    date: entryDate,
+                    onConfirm: (date) => setEntryDate(date),
+                  })} 
+                  style={styles.datePickerButton}
+                >
+                  <Text style={styles.datePickerText}>{entryDate.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+  
+                <Text style={styles.label}>Quantity</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 5"
+                  keyboardType="numeric"
+                  value={entryQuantity}
+                  onChangeText={setEntryQuantity}
+                />
+  
+                <Text style={styles.label}>Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 150.00"
+                  keyboardType="decimal-pad"
+                  value={entryAmount}
+                  onChangeText={setEntryAmount}
+                />
+  
+                {/* --- NEW BUTTON ROW --- */}
+                <View style={styles.formButtonRow}>
+                  <TouchableOpacity 
+                    style={styles.cancelFormBtn} // NEW
+                    onPress={() => setIsManualFormVisible(false)}
+                  >
+                    <Text style={styles.btnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.saveFormBtn} // NEW
+                    onPress={handleSaveEntry}
+                  >
+                    <Text style={styles.btnText}>Save Entry</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            </View>
+
+            {/* --- NEW CONDITIONAL LOGIC --- */}
+           
+          </View>
+        
+        )}
         {/* --- CONTENT AREA --- */}
         {selected == "A" ? 
         (
@@ -864,7 +1004,7 @@ export default function UserDetail() {
       {/* Global DateTimePicker Modal */}
       <DateTimePickerModal
         isVisible={isPickerVisible}
-        mode="datetime"
+        mode={pickerConfig.mode} 
         date={pickerConfig.date || new Date()}
         onConfirm={pickerConfig.onConfirm}
         onCancel={pickerConfig.onCancel}
@@ -914,6 +1054,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     minWidth: 120,
+  },
+  // --- NEW BLUE BUTTON ---
+  blueBtn: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   tankerButtonContainer: {
     marginTop: 10,
@@ -1119,5 +1269,57 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6B7280", // text-gray-500
     fontSize: 14,
+  },
+  
+  // --- STYLES FOR THE NEW FORM ---
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#111827', // Match app style
+  },
+  input: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  datePickerButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+
+  // --- NEW STYLES FOR FORM BUTTONS ---
+  formButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 10,
+  },
+  cancelFormBtn: {
+    backgroundColor: '#6b7280', // Gray
+    padding: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    flex: 1, // Make it share space
+  },
+  saveFormBtn: {
+    backgroundColor: '#16a34a', // Green
+    padding: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    flex: 1, // Make it share space
   },
 });
