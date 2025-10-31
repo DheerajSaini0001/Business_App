@@ -480,33 +480,8 @@ export default function UserDetail() {
             Registered: {new Date(user.createdAt).toLocaleDateString()}
           </Text>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.greenBtn} onPress={handleAddSession}>
-              <Text style={styles.btnText}>Add Session</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.redBtn} onPress={handleEndSession}>
-              <Text style={styles.btnText}>End Session</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.greenBtn, timerRunning && styles.disabledBtn]}
-              disabled={timerRunning}
-              onPress={handleStartRecord}
-            >
-              <Text style={styles.btnText}>Start Record</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.redBtn, !timerRunning && styles.disabledBtn]}
-              disabled={!timerRunning}
-              onPress={handleStopRecord}
-            >
-              <Text style={styles.btnText}>Stop Record</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ marginTop: 10, flex: 1, width: "100%" }}>
-            <TouchableOpacity style={styles.tankerBtn} onPress={handleTanker}>
-              <Text style={styles.btnText}>Add Tanker</Text>
-            </TouchableOpacity>
-          </View>
+          
+          
           
           {/* --- FILTER BUTTONS --- */}
           <View style={styles.filterContainer}>
@@ -544,9 +519,53 @@ export default function UserDetail() {
             </TouchableOpacity>
           </View>
         </View>
-
+{selected == "A" ? (<View style={[styles.buttonRow,{   backgroundColor: '#f9f9f9',   // light background
+    borderRadius: 12,             // rounded corners
+    padding: 16,                  // inner space
+    margin: 10,                   // outer space
+    shadowColor: '#000',          // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,  }]}>
+            <TouchableOpacity style={styles.greenBtn} onPress={handleAddSession}>
+              <Text style={styles.btnText}>Add Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.redBtn} onPress={handleEndSession}>
+              <Text style={styles.btnText}>End Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.greenBtn, timerRunning && styles.disabledBtn]}
+              disabled={timerRunning}
+              onPress={handleStartRecord}
+            >
+              <Text style={styles.btnText}>Start Record</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.redBtn, !timerRunning && styles.disabledBtn]}
+              disabled={!timerRunning}
+              onPress={handleStopRecord}
+            >
+              <Text style={styles.btnText}>Stop Record</Text>
+            </TouchableOpacity>
+          </View>):(<View style={{    backgroundColor: '#f9f9f9',   
+    borderRadius: 12,            
+    padding: 16,                
+    margin: 10,                  
+    shadowColor: '#000',          
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,  }}>
+            <TouchableOpacity style={styles.tankerBtn} onPress={handleTanker}>
+              <Text style={styles.btnText}>Add Tanker</Text>
+            </TouchableOpacity>
+          </View>)}
         {/* --- CONTENT AREA --- */}
-        {selected == "A" ? (
+        {selected == "A" ? 
+        (
+
+          
           // --- SESSION LIST ---
           sessions.map((session, idx) => {
             const sessionRecords = records.filter(
