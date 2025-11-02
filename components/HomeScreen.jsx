@@ -18,12 +18,7 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* 🔹 User Signup */}
-        <TouchableOpacity
-          style={[styles.button, styles.signupButton]}
-          onPress={() => navigation.navigate("userSignup")}
-        >
-          <Text style={styles.buttonText}>User Signup</Text>
-        </TouchableOpacity>
+        
       </View>
     </View>
   );

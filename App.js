@@ -26,7 +26,7 @@ export default function App() {
 
   // --- FIX: 'isLoading' state ko yahan define karein ---
   const [isLoading, setIsLoading] = useState(true);
-  const [initialRoute, setInitialRoute] = useState('homeScreen'); 
+  const [initialRoute, setInitialRoute] = useState('userLogin'); 
 
   // --- Login Check useEffect ---
   // Yeh app ke khulte hi sirf ek baar chalega
@@ -88,9 +88,9 @@ export default function App() {
           })}
         >
           {/* Aapki saari screens */}
-          <Stack.Screen name="homeScreen" component={HomeScreen}  />
-          <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="userLogin" component={UserLoginScreen} options={{ headerShown: false }} />
+          {/* <Stack.Screen name="homeScreen" component={HomeScreen}  /> */}
+          <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }}  />
+          <Stack.Screen name="userLogin" component={UserLoginScreen}  />
           <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Dashboard" component={UserDashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />

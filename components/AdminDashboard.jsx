@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage'; // 2. AsyncStorage ko import karein
+import { Bold } from "lucide-react-native";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -124,6 +125,19 @@ export default function AdminDashboard() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+
+  <TouchableOpacity
+            style={[styles.button, styles.signupButton,{marginVertical:10,
+      padding:2,
+      alignItems:'center',
+      flex:1,
+      justifyContent:"center" ,
+      backgroundColor: 'skyblue',   
+      borderRadius: 8}]}
+            onPress={() => navigation.navigate("userSignup")}
+          >
+            <Text style={[styles.buttonText,{fontSize:20,fontWeight:'bold'}]}>User Signup</Text>
+          </TouchableOpacity>
 
       {/* User List */}
       <ScrollView contentContainerStyle={styles.userList}>
