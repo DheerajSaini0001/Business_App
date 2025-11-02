@@ -36,6 +36,9 @@ export const ThemeProvider = ({ children }) => {
     background: isDarkMode ? "#121212" : "#f8f9fa",
     card: isDarkMode ? "#1e1e1e" : "#ffffff",
     text: isDarkMode ? "#ffffff" : "#212529",
+    subText: isDarkMode ? "#ffffff" : "#212529",
+    logOut: isDarkMode ? "#ffffff" : "#212529",
+    logOuttext: isDarkMode ? "#212529": "#ffffff" ,
     textSecondary: isDarkMode ? "#aaaaaa" : "#6c757d",
     border: isDarkMode ? "#333333" : "#ced4da",
     placeholder: isDarkMode ? "#888888" : "#999999",
@@ -133,6 +136,7 @@ const getDynamicStyles = (theme) => StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+ 
 });
 
 // --- 6. ROOT APP (for preview/testing) ---

@@ -125,19 +125,7 @@ export default function UserDashboard({ navigation }) {
     }
   }, [user, filterType]);
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.removeItem("token");
-          navigation.reset({ index: 0, routes: [{ name: "userLogin" }] });
-        },
-      },
-    ]);
-  };
+
 
   const toggleRecords = (sessionId) => {
     setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
@@ -176,9 +164,7 @@ export default function UserDashboard({ navigation }) {
             <Text style={[styles.title, { color: theme.text }]}>
               Welcome, {user.fullName}
             </Text>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
+           
           </View>
           <View style={styles.infoBox}>
             <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>

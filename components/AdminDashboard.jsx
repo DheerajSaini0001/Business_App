@@ -6,11 +6,11 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert, // 1. Alert ko import karein
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from '@react-native-async-storage/async-storage'; // 2. AsyncStorage ko import karein
-import { Bold } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../Context/ThemeContext";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -18,126 +18,100 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const navigation = useNavigation();
 
-  // --- 3. UPDATED fetchUsers ---
+  const { theme, isDarkMode } = useTheme();
+
   const fetchUsers = async () => {
     try {
-      // Token ko storage se get karein
       const token = await AsyncStorage.getItem("adminToken");
       if (!token) {
-        // Agar token nahi hai, toh auto-logout
-        performLogout(); 
+        performLogout();
         return;
       }
 
       const res = await fetch(
         "https://saini-record-management.onrender.com/admin/users",
-        {
-          // Server ko token bhejein
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Agar token invalid ya expire ho gaya hai
+
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-           throw new Error("Invalid token");
-        }
+        if (res.status === 401 || res.status === 403) throw new Error("Invalid token");
         throw new Error("Server error");
       }
 
       const data = await res.json();
       setUsers(data.users || []);
-
     } catch (err) {
-      console.error(err);
       setError("Failed to load users.");
-      // Agar token invalid hai, toh auto-logout
-      if (err.message === "Invalid token") {
-          performLogout();
-      }
+      if (err.message === "Invalid token") performLogout();
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Jab component load ho, users fetch karein
     fetchUsers();
   }, []);
 
-  // --- 4. UPDATED handleLogout (Confirmation ke saath) ---
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: performLogout, // Asli logout function ko call karein
-        },
-      ],
-      { cancelable: true }
-    );
+    Alert.alert("Logout", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", style: "destructive", onPress: performLogout },
+    ]);
   };
 
-  // Yeh alag se async function banaya
   const performLogout = async () => {
     try {
-      // Storage se 'adminToken' remove karein
       await AsyncStorage.removeItem("adminToken");
-      
-      // 'homeScreen' par reset karein
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'userLogin' }], 
-      });
+      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
     } catch (e) {
-      console.error("Failed to remove admin token", e);
       Alert.alert("Error", "Logout failed.");
     }
   };
-  // --- End of Logout Logic ---
 
-
+  // Loading
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4a148c" />
-        <Text style={styles.loadingText}>Loading users...</Text>
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.text }]}>Loading users...</Text>
       </View>
     );
 
+  // Error
   if (error)
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
       </View>
     );
 
+  // Main render
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Admin Dashboard</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <View style={[styles.header, { borderBottomColor: theme.logOut }]}>
+        <Text style={[styles.title, { color: theme.primary }]}>Admin Dashboard</Text>
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: theme.logOuttext }]}
+          onPress={handleLogout}
+        >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
 
-  <TouchableOpacity
-            style={[styles.button, styles.signupButton,{marginVertical:10,
-      padding:2,
-      alignItems:'center',
-      flex:1,
-      justifyContent:"center" ,
-      backgroundColor: 'skyblue',   
-      borderRadius: 8}]}
-            onPress={() => navigation.navigate("userSignup")}
-          >
-            <Text style={[styles.buttonText,{fontSize:20,fontWeight:'bold'}]}>User Signup</Text>
-          </TouchableOpacity>
+      {/* Add User Button */}
+      <TouchableOpacity
+        style={[
+          styles.addButton,
+          {
+            backgroundColor: theme.primary,
+            shadowColor: theme.primary,
+          },
+        ]}
+        onPress={() => navigation.navigate("userSignup")}
+      >
+        <Text style={[styles.buttonText, { color: theme.buttonText }]}>+ Add New User</Text>
+      </TouchableOpacity>
 
       {/* User List */}
       <ScrollView contentContainerStyle={styles.userList}>
@@ -145,21 +119,40 @@ export default function AdminDashboard() {
           users.map((user) => (
             <TouchableOpacity
               key={user._id}
-              style={styles.card}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  shadowColor: isDarkMode ? "#000" : "#999",
+                },
+              ]}
               onPress={() => navigation.navigate("userDetail", { user })}
             >
-              <Text style={styles.userName}>{user.fullName}</Text>
-              <Text style={styles.userInfo}>Username: {user.username}</Text>
-              <Text style={styles.userInfo}>Email: {user.email}</Text>
-              <Text style={styles.userInfo}>Phone: {user.phone}</Text>
-              <Text style={styles.userInfo}>Role: {user.role}</Text>
-              <Text style={styles.userInfo}>
+              <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
+              <View style={styles.infoRow}>
+                <Text style={[styles.label, { color: theme.primary }]}>Username: </Text>
+                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.username}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={[styles.label, { color: theme.primary }]}>Email: </Text>
+                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.email}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={[styles.label, { color: theme.primary }]}>Phone: </Text>
+                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.phone}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={[styles.label, { color: theme.primary }]}>Role: </Text>
+                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.role}</Text>
+              </View>
+              <Text style={[styles.date, { color: theme.subText }]}>
                 Registered: {new Date(user.createdAt).toLocaleDateString()}
               </Text>
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={styles.emptyText}>No users found.</Text>
+          <Text style={[styles.emptyText, { color: theme.subText }]}>No users found.</Text>
         )}
       </ScrollView>
     </View>
@@ -169,61 +162,79 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f3f3f3",
-    paddingHorizontal: 16,
-    // Add safe area padding (StatusBar height se aapka App.js manage kar raha hai)
-    paddingTop: 80, // Navbar ki height ke hisaab se adjust karein
+    paddingHorizontal: 18,
+    paddingTop: 60,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    borderBottomWidth: 0.6,
+    paddingBottom: 10,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#4a148c",
+    fontSize: 26,
+    fontWeight: "800",
   },
   logoutButton: {
-    backgroundColor: "#c1121f", // Logout ke liye Red color
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 8,
   },
   logoutText: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: 14,
+  },
+  addButton: {
+    alignSelf: "center",
+    marginVertical: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    elevation: 4,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: "600",
   },
   userList: {
-    paddingBottom: 30,
+    paddingBottom: 80,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 6,
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  infoRow: {
+    flexDirection: "row",
+    marginBottom: 3,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   userInfo: {
-    color: "#555",
     fontSize: 15,
-    marginBottom: 2,
+  },
+  date: {
+    marginTop: 8,
+    fontSize: 13,
+    fontStyle: "italic",
   },
   emptyText: {
     textAlign: "center",
-    color: "#888",
     fontSize: 16,
-    marginTop: 20,
+    marginTop: 40,
   },
   center: {
     flex: 1,
@@ -233,10 +244,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#4a148c",
   },
   errorText: {
-    color: "red",
     fontSize: 16,
   },
 });

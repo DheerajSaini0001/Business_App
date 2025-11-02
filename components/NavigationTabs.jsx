@@ -1,107 +1,53 @@
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../Context/ThemeContext"; // ✅ Import ThemeContext
 
-import React, { useState, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { ThemeContext } from "../Context/ThemeContext"; // ✅ import your theme context
+// 👇 Import your screens
+import UserDashboardScreen from "./UserDashboard";
+import UserProfileScreen from "./UserProfile";
+import UserHomeScreen from "./UserHomeScreen";
 
-const NavigationTabs = () => {
-  const [activeTab, setActiveTab] = useState("User");
-  const { theme, isDarkMode } = useContext(ThemeContext); // ✅ get theme & mode
+const Tab = createBottomTabNavigator();
+
+export default function NavigationTabs() {
+  const { theme, isDarkMode } = useTheme(); // ✅ Access theme values
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Tabs */}
-      <View
-        style={[
-          styles.tabRow,
-          { backgroundColor: isDarkMode ? "#222" : "#fff" },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "User" && {
-              backgroundColor: theme.primary,
-            },
-          ]}
-          onPress={() => setActiveTab("User")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: theme.text },
-              activeTab === "User" && { color: "#fff" },
-            ]}
-          >
-            User
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "Admin" && {
-              backgroundColor: theme.primary,
-            },
-          ]}
-          onPress={() => setActiveTab("Admin")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: theme.text },
-              activeTab === "Admin" && { color: "#fff" },
-            ]}
-          >
-            Admin
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content area */}
-      <View style={styles.content}>
-        {activeTab === "User" ? (
-          <Text style={[styles.contentText, { color: theme.text }]}>
-            👤 User Section Content
-          </Text>
-        ) : (
-          <Text style={[styles.contentText, { color: theme.text }]}>
-            🛠️ Admin Section Content
-          </Text>
-        )}
-      </View>
-    </View>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          if (route.name === "Home") iconName = "home-outline";
+          else if (route.name === "Dashboard") iconName = "grid-outline";
+          else if (route.name === "UserProfile") iconName = "person-outline";
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        // ✅ Apply theme dynamically
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.subText,
+        tabBarStyle: {
+          backgroundColor: theme.card,
+          borderTopWidth: 0.5,
+          borderTopColor: isDarkMode ? "#333" : "#ccc",
+          height: 60,
+          paddingBottom: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "500",
+          color: theme.text,
+        },
+      })}
+    >
+      <Tab.Screen name="Home" component={UserHomeScreen} />
+      <Tab.Screen name="Dashboard" component={UserDashboardScreen} />
+      <Tab.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={{ title: "Profile" }}
+      />
+    </Tab.Navigator>
   );
-};
-
-export default NavigationTabs;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  tabRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    elevation: 4,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  contentText: {
-    fontSize: 18,
-  },
-});
+}

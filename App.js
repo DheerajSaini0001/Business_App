@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from "./Context/ThemeContext";
 // --- Aapke Components ---
 import Navbar from "./components/Navbar";
-import HomeScreen from "./components/HomeScreen";
+import Home from "./components/Home";
 import UserSignupScreen from "./components/UserSignup";
 import UserLoginScreen from "./components/Login";
 import AdminLoginScreen from "./components/AdminLogin";
@@ -21,6 +21,7 @@ import UserDashboardScreen from "./components/UserDashboard";
 import AdminDashboardScreen from "./components/AdminDashboard";
 import UserDetailScreen from "./components/UserDetail";
 import NavigationTabs from "./components/NavigationTabs";
+import UserProfileScreen from "./components/UserProfile";
 
 const Stack = createNativeStackNavigator();
 
@@ -29,7 +30,7 @@ export default function App() {
 
   // --- FIX: 'isLoading' state ko yahan define karein ---
   const [isLoading, setIsLoading] = useState(true);
-  const [initialRoute, setInitialRoute] = useState('userLogin'); 
+  const [initialRoute, setInitialRoute] = useState('homeScreen'); 
 
   // --- Login Check useEffect ---
   // Yeh app ke khulte hi sirf ek baar chalega
@@ -94,11 +95,13 @@ export default function App() {
   })}
         >
           {/* Aapki saari screens */}
-          {/* <Stack.Screen name="homeScreen" component={HomeScreen}  /> */}
+          <Stack.Screen name="homeScreen" component={Home}  />
           <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }}  />
           <Stack.Screen name="userLogin" component={UserLoginScreen}  />
           <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Dashboard" component={UserDashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Dashboard" component={NavigationTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="UserProfileScreen" component={NavigationTabs} options={{ headerShown: false }} />
+
           <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
           
