@@ -86,7 +86,7 @@ export default function UserDashboard({ navigation }) {
         // Auto-logout agar user fetch fail ho
         try {
             await AsyncStorage.removeItem("token");
-            navigation.reset({ index: 0, routes: [{ name: 'homeScreen' }] });
+            navigation.reset({ index: 0, routes: [{ name: 'userLogin' }] });
         } catch (logoutError) {
             console.error("Auto-logout failed:", logoutError);
         }
@@ -170,7 +170,7 @@ export default function UserDashboard({ navigation }) {
               await AsyncStorage.removeItem("token");
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'homeScreen' }],
+                routes: [{ name: 'userLogin' }],
               });
             } catch (error) {
               console.error("Logout ke time error:", error);

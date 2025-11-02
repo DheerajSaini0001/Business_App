@@ -91,7 +91,7 @@ export default function AdminDashboard() {
       // 'homeScreen' par reset karein
       navigation.reset({
         index: 0,
-        routes: [{ name: 'homeScreen' }], 
+        routes: [{ name: 'userLogin' }], 
       });
     } catch (e) {
       console.error("Failed to remove admin token", e);
