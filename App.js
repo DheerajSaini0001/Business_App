@@ -9,6 +9,8 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+import { ThemeProvider } from "./Context/ThemeContext";
 // --- Aapke Components ---
 import Navbar from "./components/Navbar";
 import HomeScreen from "./components/HomeScreen";
@@ -18,6 +20,7 @@ import AdminLoginScreen from "./components/AdminLogin";
 import UserDashboardScreen from "./components/UserDashboard";
 import AdminDashboardScreen from "./components/AdminDashboard";
 import UserDetailScreen from "./components/UserDetail";
+import NavigationTabs from "./components/NavigationTabs";
 
 const Stack = createNativeStackNavigator();
 
@@ -72,7 +75,8 @@ export default function App() {
 
   // --- Main App Navigator ---
   return (
-    <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
+        <ThemeProvider>
+<View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
       <StatusBar 
         barStyle="dark-content" 
         backgroundColor="transparent" 
@@ -83,9 +87,11 @@ export default function App() {
           // Yahan initial route state se control ho raha hai
           initialRouteName={initialRoute} 
           screenOptions={({ navigation, route }) => ({
-            header: () => <Navbar navigation={navigation} title={route.name} />,
-            headerTransparent: true, 
-          })}
+    header: () => <Navbar navigation={navigation} title={route.name} />,
+    headerTransparent: true,
+    // ✅ Custom footer like header
+     
+  })}
         >
           {/* Aapki saari screens */}
           {/* <Stack.Screen name="homeScreen" component={HomeScreen}  /> */}
@@ -95,9 +101,14 @@ export default function App() {
           <Stack.Screen name="Dashboard" component={UserDashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
+          
         </Stack.Navigator>
+        
       </NavigationContainer>
+      
     </View>
+        </ThemeProvider>
+    
   );
 } // --- FIX: Function yahan band hoga ---
 

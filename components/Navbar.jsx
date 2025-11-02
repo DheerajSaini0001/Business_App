@@ -1,20 +1,32 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from "react-native";
-import { Ionicons } from "@expo/vector-icons"; // install if not: expo install @expo/vector-icons
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../Context/ThemeContext"; // ✅ import theme hook
 
 const Navbar = ({ navigation }) => {
   const [menuVisible, setMenuVisible] = useState(false);
+  const { theme, isDarkMode, toggleTheme } = useTheme(); // ✅ Access theme + toggle
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
+
+  // ✅ Dynamic styles based on theme
+  const styles = getStyles(theme);
 
   return (
     <View style={styles.navbar}>
       {/* 🏷️ App Name */}
       <Text style={styles.title}>Saini Record</Text>
 
+
+
       {/* 🍔 Hamburger Icon */}
-      <TouchableOpacity onPress={toggleMenu}>
-        <Ionicons name="menu" size={28} color="#fff" />
+      <TouchableOpacity onPress={toggleTheme}>
+         <Ionicons
+          name={isDarkMode ? "sunny-outline" : "moon-outline"}
+          size={24}
+          color={theme.text}
+          style={{ marginRight: 10 }}
+        />
       </TouchableOpacity>
 
       {/* 🧾 Menu Modal */}
@@ -35,7 +47,6 @@ const Navbar = ({ navigation }) => {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                console.log("Home Pressed");
                 setMenuVisible(false);
                 navigation.navigate("homeScreen");
               }}
@@ -46,7 +57,6 @@ const Navbar = ({ navigation }) => {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                console.log("User Pressed");
                 setMenuVisible(false);
                 navigation.navigate("userLogin");
               }}
@@ -57,10 +67,8 @@ const Navbar = ({ navigation }) => {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                console.log("Admin Pressed");
                 setMenuVisible(false);
                 navigation.navigate("adminLogin");
-
               }}
             >
               <Text style={styles.menuText}>Admin</Text>
@@ -74,42 +82,48 @@ const Navbar = ({ navigation }) => {
 
 export default Navbar;
 
-const styles = StyleSheet.create({
-  navbar: {
-    height: 60,
-    backgroundColor: "#4a148c",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    elevation: 5,
-  },
-  title: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-  },
-  menu: {
-    backgroundColor: "#fff",
-    marginTop: 70,
-    marginRight: 10,
-    borderRadius: 8,
-    paddingVertical: 10,
-    width: 150,
-    elevation: 6,
-  },
-  menuItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-  },
-  menuText: {
-    fontSize: 16,
-    color: "#333",
-  },
-});
+// ✅ Dynamic styles (theme-based)
+const getStyles = (theme) =>
+  StyleSheet.create({
+    navbar: {
+      height: 60,
+      backgroundColor: theme.card, // themed background
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      elevation: 5,
+      borderBottomWidth: 1,
+      borderColor: theme.border,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 20,
+      fontWeight: "bold",
+    },
+    overlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.4)", // semi-dark overlay
+      justifyContent: "flex-start",
+      alignItems: "flex-end",
+    },
+    menu: {
+      backgroundColor: theme.card,
+      marginTop: 70,
+      marginRight: 10,
+      borderRadius: 8,
+      paddingVertical: 10,
+      width: 150,
+      elevation: 6,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    menuItem: {
+      paddingVertical: 10,
+      paddingHorizontal: 15,
+    },
+    menuText: {
+      fontSize: 16,
+      color: theme.text,
+    },
+  });

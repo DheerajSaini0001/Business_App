@@ -10,27 +10,26 @@ import {
   ScrollView,
   KeyboardAvoidingView, 
   Platform,
-  StatusBar // Added StatusBar
+  StatusBar
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, UserCircle } from 'lucide-react-native'; // Added UserCircle
+import { Eye, EyeOff, UserCircle } from 'lucide-react-native';
+import { useTheme } from "../Context/ThemeContext"; // ✅ import context
 
 export default function LoginScreen({ navigation }) {
+  const { theme, isDarkMode } = useTheme(); // ✅ get theme values
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); 
-
-  // --- NEW: State to track input focus ---
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  // ----------------------------------------
 
   const handleChange = (key, value) => {
     setFormData({ ...formData, [key]: value });
   };
 
   const handleSubmit = async () => {
-    // (Your existing handleSubmit logic... no changes needed here)
     const trimmedEmail = formData.email.trim();
     const trimmedPassword = formData.password.trim();
 
@@ -54,8 +53,8 @@ export default function LoginScreen({ navigation }) {
         await AsyncStorage.setItem("token", data.token);
         
         navigation.reset({
-               index: 0,
-               routes: [{ name: 'Dashboard' }],
+          index: 0,
+          routes: [{ name: 'Dashboard' }],
         });
       } else {
         Alert.alert("Login Failed ❌", data.error || "Invalid credentials");
@@ -71,53 +70,61 @@ export default function LoginScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]} // ✅ dynamic background
     >
-      {/* Set status bar style to match new background */}
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" /> 
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={theme.background}
+      /> 
       
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled" // Closes keyboard on tap
+        keyboardShouldPersistTaps="handled"
       >
-        {/* --- NEW: Logo Container --- */}
         <View style={styles.logoContainer}>
-          <UserCircle color="#3b82f6" size={64} />
+          <UserCircle color={theme.primary} size={64} />
         </View>
-        {/* --------------------------- */}
 
-        <Text style={styles.title}>Welcome Back!</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          Welcome Back!
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          Sign in to continue
+        </Text>
 
+        {/* Email */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Email Address</Text>
           <TextInput
             placeholder="Enter your email"
             value={formData.email}
             onChangeText={(text) => handleChange("email", text)}
             keyboardType="email-address"
             autoCapitalize="none"
-            // --- UPDATED: Apply focus style dynamically ---
             style={[
               styles.input, 
-              isEmailFocused && styles.inputFocused
+              { 
+                backgroundColor: theme.card, 
+                color: theme.text, 
+                borderColor: isEmailFocused ? theme.primary : theme.border 
+              }
             ]}
             onFocus={() => setIsEmailFocused(true)}
             onBlur={() => setIsEmailFocused(false)}
-            // ---------------------------------------------
-            autoComplete="email"
-            textContentType="emailAddress"
-            placeholderTextColor="#999" // Lighter placeholder text
+            placeholderTextColor={theme.placeholder}
           />
         </View>
 
+        {/* Password */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password</Text>
-          {/* --- UPDATED: Apply focus style to container --- */}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Password</Text>
           <View 
             style={[
               styles.passwordInputContainer,
-              isPasswordFocused && styles.inputFocused
+              { 
+                backgroundColor: theme.card, 
+                borderColor: isPasswordFocused ? theme.primary : theme.border 
+              }
             ]}
           >
             <TextInput
@@ -125,28 +132,27 @@ export default function LoginScreen({ navigation }) {
               value={formData.password}
               onChangeText={(text) => handleChange("password", text)}
               secureTextEntry={!showPassword} 
-              style={styles.passwordInput}
+              style={[styles.passwordInput, { color: theme.text }]}
               onFocus={() => setIsPasswordFocused(true)}
               onBlur={() => setIsPasswordFocused(false)}
-              autoComplete="password"
-              textContentType="password"
-              placeholderTextColor="#999" // Lighter placeholder text
+              placeholderTextColor={theme.placeholder}
             />
             <TouchableOpacity 
               onPress={() => setShowPassword(!showPassword)} 
               style={styles.passwordVisibilityToggle}
             >
               {showPassword ? (
-                <Eye color="#666" size={20} />
+                <Eye color={theme.icon} size={20} />
               ) : (
-                <EyeOff color="#666" size={20} />
+                <EyeOff color={theme.icon} size={20} />
               )}
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Button */}
         <TouchableOpacity
-          style={[styles.button, loading && { opacity: 0.7 }]}
+          style={[styles.button, { backgroundColor: theme.primary }, loading && { opacity: 0.7 }]}
           onPress={handleSubmit}
           disabled={loading}
         >
@@ -156,83 +162,56 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
-
-        {/* --- NEW: Sign Up / Forgot Password --- */}
-
-        {/* -------------------------------------- */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-// --- NEW STYLES ---
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-    backgroundColor: "#f8f9fa", // Lighter, cleaner background
-  },
+  container: { flex: 1 },
   scrollContainer: {
     flexGrow: 1, 
     padding: 24,
     justifyContent: "center",
-    paddingBottom: 48, // Add padding at the bottom
+    paddingBottom: 48,
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
   title: {
-    fontSize: 32, // Larger title
-    fontWeight: "700", // Bolder
+    fontSize: 32,
+    fontWeight: "700",
     textAlign: "center",
     marginBottom: 8,
-    color: "#212529", // Darker text color
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#6c757d', // Softer subtitle color
     marginBottom: 32,
   },
   inputGroup: {
     width: "100%",
-    marginBottom: 20, // Increased spacing
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14, // Slightly smaller label
-    color: "#495057", // Medium gray
+    fontSize: 14,
     marginBottom: 8,
-    fontWeight: "600", // Bolder label
+    fontWeight: "600",
   },
   input: { 
     borderWidth: 1,
-    borderColor: "#ced4da", // Lighter border
-    borderRadius: 12, // More rounded corners
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#fff', // White input background
-    // Shadow for iOS
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    // Elevation for Android
     elevation: 2,
   },
   passwordInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#ced4da",
     borderRadius: 12,
-    backgroundColor: '#fff',
-    // Shadow for iOS
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    // Elevation for Android
     elevation: 2,
   },
   passwordInput: {
@@ -240,35 +219,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#212529',
   },
   passwordVisibilityToggle: {
     padding: 12,
   },
-  // --- NEW: Style for focused inputs ---
-  inputFocused: {
-    borderColor: '#3b82f6', // Primary blue border
-    borderWidth: 2, // Make it pop
-    // iOS shadow
-    shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    // Android elevation
-    elevation: 5,
-  },
   button: {
-    backgroundColor: "#3b82f6", // Blue color
-    padding: 16, // More padding
-    borderRadius: 12, // Match input border radius
+    padding: 16,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 24, 
-    // Shadow for iOS
-    shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    // Elevation for Android
     elevation: 8,
   },
   buttonText: {
@@ -276,18 +235,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  // --- NEW: Styles for links ---
-  linksContainer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#6c757d',
-    fontSize: 14,
-    marginBottom: 8, // Space between links
-  },
-  signUpLink: {
-    color: '#3b82f6',
-    fontWeight: 'bold',
-  }
 });
