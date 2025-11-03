@@ -78,10 +78,10 @@ function MyTabBar({ state, descriptors, navigation }) {
 export default function LoginScreen({ navigation }) {
   const { theme, isDarkMode } = useTheme(); // ✅ get theme values
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ phone: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); 
-  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isphoneFocused, setIsPhoneFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleChange = (key, value) => {
@@ -89,10 +89,10 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    const trimmedEmail = formData.email.trim();
     const trimmedPassword = formData.password.trim();
+    const phone = formData.phone.trim();
 
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!trimmedPassword) {
       Alert.alert("Missing Fields", "Please fill all fields!");
       return;
     }
@@ -102,7 +102,7 @@ export default function LoginScreen({ navigation }) {
       const response = await fetch("https://saini-record-management.onrender.com/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+        body: JSON.stringify({ phone:phone, password: trimmedPassword }),
       });
 
       const data = await response.json();
@@ -155,25 +155,25 @@ export default function LoginScreen({ navigation }) {
           Sign in to continue
         </Text>
 
-        {/* Email */}
+        {/* phone */}
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Email Address</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Phone Number</Text>
           <TextInput
-            placeholder="Enter your email"
-            value={formData.email}
-            onChangeText={(text) => handleChange("email", text)}
-            keyboardType="email-address"
+            placeholder="Enter your Phone Number"
+            value={formData.phone}
+            onChangeText={(text) => handleChange("phone", text)}
+            keyboardType="phone-pad"
             autoCapitalize="none"
             style={[
               styles.input, 
               { 
                 backgroundColor: theme.card, 
                 color: theme.text, 
-                borderColor: isEmailFocused ? theme.primary : theme.border 
+                borderColor: isphoneFocused ? theme.primary : theme.border 
               }
             ]}
-            onFocus={() => setIsEmailFocused(true)}
-            onBlur={() => setIsEmailFocused(false)}
+            onFocus={() => setIsPhoneFocused(true)}
+            onBlur={() => setIsPhoneFocused(false)}
             placeholderTextColor={theme.placeholder}
           />
         </View>

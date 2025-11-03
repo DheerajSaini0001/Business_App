@@ -14,8 +14,6 @@ import {
 export default function UserSignup({ navigation }) {
   const [formData, setFormData] = useState({
     fullName: "",
-    username: "",
-    email: "",
     phone: "",
     password: "",
     confirmPassword: "",
@@ -26,6 +24,15 @@ export default function UserSignup({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+
+const handleLogin = () => {
+
+  navigation.reset({
+    index: 0,
+    routes: [{ name: 'homeScreen' }], // Send them to the main part of your app
+  });
+};
+
   // Handle change
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -35,8 +42,6 @@ export default function UserSignup({ navigation }) {
   const handleSubmit = async () => {
     if (
       !formData.fullName ||
-      !formData.username ||
-      !formData.email ||
       !formData.phone ||
       !formData.password ||
       !formData.confirmPassword
@@ -71,8 +76,6 @@ export default function UserSignup({ navigation }) {
         Alert.alert("Success 🎉", "Signup successful!");
         setFormData({
           fullName: "",
-          username: "",
-          email: "",
           phone: "",
           password: "",
           confirmPassword: "",
@@ -105,26 +108,6 @@ export default function UserSignup({ navigation }) {
         placeholder="Enter your full name"
         value={formData.fullName}
         onChangeText={(text) => handleChange("fullName", text)}
-      />
-
-      {/* --- Username --- */}
-      <Text style={styles.label}>Username</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Choose a username"
-        value={formData.username}
-        onChangeText={(text) => handleChange("username", text)}
-      />
-
-      {/* --- Email --- */}
-      <Text style={styles.label}>Email Address</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={formData.email}
-        onChangeText={(text) => handleChange("email", text)}
       />
 
       {/* --- Phone --- */}
@@ -182,7 +165,7 @@ export default function UserSignup({ navigation }) {
       </TouchableOpacity>
 
       {/* Login Link */}
-      <TouchableOpacity onPress={() => navigation.navigate("userLogin")}>
+      <TouchableOpacity onPress={handleLogin}>
         <Text style={styles.loginLink}>
           Already have an account? Login here
         </Text>
