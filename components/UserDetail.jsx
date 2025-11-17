@@ -1,20 +1,36 @@
 import React, { useEffect, useState } from "react";
+// Import React Native components
 import {
+  StyleSheet,
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
-  Alert,
+  TextInput,
+  ScrollView,
   ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
-  TextInput, // <-- Import TextInput
-  Button, // <-- Import Button (or just use TouchableOpacity)
+  Alert,
+  Image,
 } from "react-native";
+// Import React Navigation hooks
 import { useRoute, useNavigation } from "@react-navigation/native";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 
-// Helper functions from web version
+// === API Base URL ===
+// Change this one line to update your API endpoint everywhere
+const BASE_URL = "https://saini-record-management.onrender.com";
+// =====================
+
+// Helper functions (Unchanged)
+const toLocalInputString = (isoString) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const format12Hour = (isoString) => {
   if (!isoString) return "-";
   return new Date(isoString).toLocaleTimeString([], {
@@ -26,19 +42,6 @@ const format12Hour = (isoString) => {
 
 const formatDateDMY = (isoString) => {
   if (!isoString) return "-";
-  // Check if isoString is just a date "YYYY-MM-DD", which causes timezone issues
-  // If it doesn't contain 'T' or 'Z', treat it as a local date
-  if (!isoString.includes('T') && !isoString.includes('Z')) {
-    const [year, month, day] = isoString.split('-').map(Number);
-    // Create date as UTC to avoid timezone shift, then format
-    const date = new Date(Date.UTC(year, month - 1, day));
-     const d = date.getUTCDate().toString().padStart(2, "0");
-     const m = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-     const y = date.getUTCFullYear();
-    return `${d}/${m}/${y}`;
-  }
-  
-  // Original logic for full ISO strings
   const date = new Date(isoString);
   const day = date.getDate().toString().padStart(2, "0");
   const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -46,74 +49,76 @@ const formatDateDMY = (isoString) => {
   return `${day}/${month}/${year}`;
 };
 
-// Adapted helper to get a Date object, or null
-const toDate = (isoString) => {
-  if (!isoString) return null;
-  return new Date(isoString);
-};
-
 export default function UserDetail() {
+  // React Navigation hooks replace react-router-dom
   const route = useRoute();
   const navigation = useNavigation();
+  // Get the user passed from the previous screen
+  const { user: initialUser } = route.params; // <-- 1. Renamed to initialUser
 
-  // 'A' = Session, 'B' = Tanker/Daily
-  const [selected, setSelected] = useState("A");
+  // --- State variables ---
+  // 2. Create local state for the user, initialized with the prop
+  const [user, setUser] = useState(initialUser);
 
-  // Get full user object from route params
-  const { user } = route.params;
-
-  // State for Session data
-  const [sessions, setSessions] = useState([]);
+  const [session, setSession] = useState([]);
   const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true); // Main loading for sessions
   const [timerRunning, setTimerRunning] = useState(false);
-
-  // --- NEW STATE FOR DAILY DATA ---
-  const [dailyData, setDailyData] = useState([]);
-  const [dailyLoading, setDailyLoading] = useState(false); // Separate loading for daily tab
-
-  // State from web version
   const [editingRecordId, setEditingRecordId] = useState(null);
-  const [editStartTime, setEditStartTime] = useState(null); // Use Date objects
-  const [editStopTime, setEditStopTime] = useState(null); // Use Date objects
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editStopTime, setEditStopTime] = useState("");
+  const [newStartTime, setNewStartTime] = useState("");
+  const [newStopTime, setNewStopTime] = useState("");
+  const [openSession, setOpenSession] = useState({});
+  const [filterType, setFilterType] = useState("session");
+  const [dailyData, setDailyData] = useState([]);
+  const [manualDate, setManualDate] = useState("");
+  const [manualTotal, setManualTotal] = useState("");
+  const [manualAmount, setManualAmount] = useState("");
 
-  const [newStartTime, setNewStartTime] = useState(null); // Use Date objects
-  const [newStopTime, setNewStopTime] = useState(null); // Use Date objects
+  const [editingDailyId, setEditingDailyId] = useState(null);
+  const [editDailyDate, setEditDailyDate] = useState("");
+  const [editDailyTotal, setEditDailyTotal] = useState("");
+  const [editDailyAmount, setEditDailyAmount] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [message, setMessage] = useState("");
+  const [showDepositForm, setShowDepositForm] = useState(false);
+  const [deposits, setDeposits] = useState([]);
+  const [showDepositHistory, setShowDepositHistory] = useState(false);
 
-  const [openSession, setOpenSession] = useState({}); // Track toggle state
-
-  // --- NEW STATE FOR ENTRY FORM ---
-  const [entryDate, setEntryDate] = useState(new Date());
-  const [entryQuantity, setEntryQuantity] = useState('');
-  const [entryAmount, setEntryAmount] = useState('');
-  
-  // --- NEW STATE TO TOGGLE FORM VISIBILITY ---
-  const [isManualFormVisible, setIsManualFormVisible] = useState(false);
-
-  // State for DateTimePicker
-  const [isPickerVisible, setPickerVisible] = useState(false);
-  const [pickerConfig, setPickerConfig] = useState({
-    onConfirm: () => {},
-    onCancel: () => {},
-    date: new Date(),
-    mode: "datetime", // Add default mode
-  });
+  // New state to manage collapsible daily entries (replaces <details>)
+  const [openDaily, setOpenDaily] = useState({});
 
   const COST_PER_HOUR = 150;
-  const API_URL = "https://saini-record-management.onrender.com"; // Use your server URL
 
-  const fetchSessions = async () => {
-    if (!user?._id) return;
-    setLoading(true);
+  // 3. Re-introduced fetchUser to refresh local state
+  const fetchUser = async () => {
+    if (!user?._id) return; // Safety check
     try {
-      const res = await fetch(`${API_URL}/session/${user._id}`);
+      const res = await fetch(`${BASE_URL}/admin/users/${user._id}`);
+      const data = await res.json();
+      if (res.ok) {
+        setUser(data.user); // This updates the local state
+      } else {
+        console.warn("Failed to refresh user:", data.message);
+      }
+    } catch (err) {
+      console.warn("Failed to load user refresh.", err);
+    }
+  };
+
+
+  // Fetch session (Updated with BASE_URL and user._id)
+  const fetchSession = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/session/${user._id}`); // <-- Use user._id
       const data = await res.json();
       const sessionData = data.session || [];
-      setSessions(sessionData);
+      setSession(sessionData);
 
       const allRecords = [];
-      sessionData.forEach((s) => {
-        (s.records || []).forEach((r) => {
+      sessionData.forEach((session) => {
+        (session.records || []).forEach((r) => {
           let durationReadable = "-";
           let durationDecimal = 0;
           let cost = 0;
@@ -129,164 +134,133 @@ export default function UserDetail() {
           }
           allRecords.push({
             ...r,
-            sessionId: s._id,
+            sessionId: session._id,
             durationReadable,
+            durationDecimal,
             cost,
-            sessionDate: s.startTime, // For a consistent date column
           });
         });
       });
 
       allRecords.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
       setRecords(allRecords);
-      setTimerRunning(!!allRecords.find((r) => !r.stopTime));
+      const running = allRecords.find((r) => !r.stopTime);
+      setTimerRunning(!!running);
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to load sessions");
-    } finally {
-      setLoading(false);
     }
   };
 
-  // --- NEW FUNCTION TO FETCH DAILY DATA ---
+  // Fetch daily data (Updated with BASE_URL and user._id)
   const fetchDailyData = async () => {
-    if (!user?._id) return;
-    setDailyLoading(true); // Start daily loading
     try {
-      const res = await fetch(`${API_URL}/dailyentry/${user._id}`);
+      const res = await fetch(`${BASE_URL}/dailyentry/${user._id}`); // <-- Use user._id
       const data = await res.json();
-
-      // Match the web code's data extraction
-      const dailyTotals = Array.isArray(data?.data?.days)
-        ? data.data.days.map((day) => ({
-            _id: day._id || day.date, // Add a key for list
-            date: day.date,
-            dailyTotal: day.dailyTotal || 0,
-            dailyAmount: day.dailyAmount || 0,
-          }))
-        : [];
-
-      // Sort by date, most recent first
-      dailyTotals.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      setDailyData(dailyTotals);
+      setDailyData(data.data);
     } catch (err) {
       console.error("❌ Error fetching daily entries:", err);
-      Alert.alert("Error", "Failed to load daily entries");
-    } finally {
-      setDailyLoading(false); // Stop daily loading
     }
   };
 
-  // --- UPDATED useEffect ---
-  // This now handles initial load AND tab switching
+  // useEffect (Updated dependencies)
   useEffect(() => {
-    if (selected === "A") {
-      fetchSessions();
+    if (filterType === "session") {
+      fetchSession();
     } else {
       fetchDailyData();
     }
-  }, [selected, user]); // Re-run if selected or user changes
+  }, [user._id, filterType]); // <-- Use user._id
 
-  // --- DateTimePicker Handlers ---
-  const hidePicker = () => setPickerVisible(false);
-
-  // --- UPDATED showPicker ---
-  const showPicker = (config) => {
-    setPickerConfig({
-      mode: "datetime", // Default mode
-      ...config,        // Overwrite with provided config (if any)
-      onCancel: hidePicker,
-      onConfirm: (date) => {
-        config.onConfirm(date);
-        hidePicker();
-      },
-    });
-    setPickerVisible(true);
-  };
-
-  // --- Accordion Handler ---
+  // Session toggles (Unchanged)
   const toggleSession = (sessionId) => {
     setOpenSession((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   };
 
-  // --- API Handlers (All handlers remain the same) ---
+  // New toggle handler for daily entries
+  const toggleDaily = (dayId) => {
+    setOpenDaily((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
+  };
+
+  // === Handlers ===
+  // All handlers updated to use user._id
+
   const handleAddSession = async () => {
     try {
-      const res = await fetch(`${API_URL}/session/start/${user._id}`, {
+      const res = await fetch(`${BASE_URL}/session/start/${user._id}`, { // <-- Use user._id
         method: "POST",
       });
       if (res.ok) {
         Alert.alert("Success", "New session started!");
-        fetchSessions();
+        fetchSession();
       } else {
         const data = await res.json();
         Alert.alert("Error", data.message || "Failed to start session");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to start session");
+      Alert.alert("Error", "A network error occurred.");
     }
   };
 
   const handleEndSession = async () => {
-    const active = sessions.find((s) => !s.stopTime);
-    if (!active) return Alert.alert("Info", "No running session found.");
+    const runningSession = session.find((s) => !s.stopTime);
+    if (!runningSession) return Alert.alert("Info", "No running session found.");
     try {
-      const res = await fetch(`${API_URL}/session/end/${active._id}`, {
+      const res = await fetch(`${BASE_URL}/session/end/${runningSession._id}`, {
         method: "POST",
       });
       if (res.ok) {
         Alert.alert("Success", "Session ended!");
-        fetchSessions();
+        fetchSession();
       } else {
         const data = await res.json();
         Alert.alert("Error", data.message || "Failed to end session");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to end session");
+      Alert.alert("Error", "A network error occurred.");
     }
   };
 
   const handleStartRecord = async () => {
     if (timerRunning) return;
-    const active = sessions.find((s) => !s.stopTime);
-    if (!active)
+    const runningSession = session.find((s) => !s.stopTime);
+    if (!runningSession)
       return Alert.alert("Info", "No active session! Start a session first.");
 
     try {
-      const res = await fetch(`${API_URL}/session/addRecord/${active._id}`, {
+      const res = await fetch(`${BASE_URL}/session/addRecord/${runningSession._id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startTime: new Date().toISOString() }),
       });
-      if (res.ok) fetchSessions();
+      if (res.ok) fetchSession();
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to start record");
     }
   };
 
   const handleStopRecord = async () => {
-    const activeSession = sessions.find((s) => !s.stopTime);
-    if (!activeSession) return Alert.alert("Info", "No active session found.");
-    const activeRecord = records.find((r) => !r.stopTime);
-    if (!activeRecord) return;
+    const runningSession = session.find((s) => !s.stopTime);
+    if (!runningSession) return Alert.alert("Info", "No active session found.");
+    const runningRecord = records.find((r) => !r.stopTime);
+    if (!runningRecord) return;
 
     try {
       const res = await fetch(
-        `${API_URL}/session/stopRecord/${activeSession._id}/${activeRecord._id}`,
+        `${BASE_URL}/session/stopRecord/${runningSession._id}/${runningRecord._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ stopTime: new Date().toISOString() }),
         }
       );
-      if (res.ok) fetchSessions();
+      if (res.ok) {
+        fetchSession();
+        await fetchUser(); // <-- 4. Call fetchUser() here
+      }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to stop record");
     }
   };
 
@@ -294,54 +268,51 @@ export default function UserDetail() {
     if (!newStartTime || !newStopTime)
       return Alert.alert("Info", "Select start and stop time.");
     if (new Date(newStartTime) >= new Date(newStopTime))
-      return Alert.alert("Info", "Stop time must be after start time.");
+      return Alert.alert("Info", "Stop must be after start.");
 
     try {
-      const res = await fetch(
-        `${API_URL}/session/addRecordToSession/${sessionId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            startTime: newStartTime.toISOString(),
-            stopTime: newStopTime.toISOString(),
-          }),
-        }
-      );
+      const res = await fetch(`${BASE_URL}/session/addRecordToSession/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startTime: new Date(newStartTime).toISOString(),
+          stopTime: new Date(newStopTime).toISOString(),
+        }),
+      });
       if (res.ok) {
-        fetchSessions();
-        setNewStartTime(null);
-        setNewStopTime(null);
+        fetchSession();
+        await fetchUser(); // <-- 4. Call fetchUser() here
+        setNewStartTime("");
+        setNewStopTime("");
       } else {
         const data = await res.json();
         Alert.alert("Error", data.message || "Failed to add record");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to add record");
     }
   };
 
+  // Edit/Cancel handlers (Unchanged)
   const handleEditClick = (record) => {
     setEditingRecordId(record._id);
-    setEditStartTime(toDate(record.startTime));
-    setEditStopTime(toDate(record.stopTime));
+    setEditStartTime(toLocalInputString(record.startTime));
+    setEditStopTime(toLocalInputString(record.stopTime));
   };
-
   const handleCancelEdit = () => {
     setEditingRecordId(null);
-    setEditStartTime(null);
-    setEditStopTime(null);
+    setEditStartTime("");
+    setEditStopTime("");
   };
 
   const handleSaveEdit = async (record) => {
     try {
       const payload = {
-        startTime: editStartTime.toISOString(),
-        stopTime: editStopTime.toISOString(),
+        startTime: new Date(editStartTime).toISOString(),
+        stopTime: new Date(editStopTime).toISOString(),
       };
       const res = await fetch(
-        `${API_URL}/session/editRecord/${record.sessionId}/${record._id}`,
+        `${BASE_URL}/session/editRecord/${record.sessionId}/${record._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -349,51 +320,44 @@ export default function UserDetail() {
         }
       );
       if (res.ok) {
-        fetchSessions();
+        fetchSession();
+        await fetchUser(); // <-- 4. Call fetchUser() here
         handleCancelEdit();
-      } else {
-        Alert.alert("Error", "Failed to save record");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to save record");
     }
   };
 
   const handleDelete = (record) => {
-    Alert.alert(
-      "Delete Record",
-      "Are you sure you want to delete this record?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const res = await fetch(
-                `${API_URL}/session/deleteRecord/${record.sessionId}/${record._id}`,
-                { method: "DELETE" }
-              );
-              if (res.ok) {
-                fetchSessions();
-              } else {
-                Alert.alert("Error", "Failed to delete record");
-              }
-            } catch (err) {
-              console.error(err);
-              Alert.alert("Error", "Failed to delete record");
+    Alert.alert("Confirm Delete", "Delete this record?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await fetch(
+              `${BASE_URL}/session/deleteRecord/${record.sessionId}/${record._id}`,
+              { method: "DELETE" }
+            );
+            if (res.ok) {
+              fetchSession();
+              await fetchUser(); // <-- 4. Call fetchUser() here
             }
-          },
+          } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Failed to delete record.");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleDeleteSession = (sessionId) => {
     Alert.alert(
-      "Delete Session",
-      "Are you sure you want to delete this entire session and all its records?",
+      "Confirm Delete",
+      "Are you sure you want to delete this session?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -401,20 +365,23 @@ export default function UserDetail() {
           style: "destructive",
           onPress: async () => {
             try {
-              const res = await fetch(
-                `${API_URL}/session/deleteSession/${sessionId}`,
-                { method: "DELETE" }
-              );
+              const res = await fetch(`${BASE_URL}/session/deleteSession/${sessionId}`, {
+                method: "DELETE",
+              });
+              const data = await res.json();
               if (res.ok) {
                 Alert.alert("Success", "Session deleted successfully!");
-                fetchSessions();
+                fetchSession();
+                await fetchUser(); // <-- 4. Call fetchUser() here
               } else {
-                const data = await res.json();
-                Alert.alert("Error", data.message || "Failed to delete session");
+                Alert.alert(
+                  "Error",
+                  data.message || "Failed to delete session"
+                );
               }
             } catch (error) {
               console.error("Error deleting session:", error);
-              Alert.alert("Error", "Server error while deleting session");
+              Alert.alert("Error", "A network error occurred.");
             }
           },
         },
@@ -422,904 +389,1054 @@ export default function UserDetail() {
     );
   };
 
-  const handleTanker = async () => {
-    const userId = user?._id;
-    if (!userId) {
-      Alert.alert("Error", "⚠️ User ID is required.");
-      return;
-    }
-
+  const handleAddData = async (userId) => {
     try {
-      const response = await fetch(`${API_URL}/dailyentry/addEntry`, {
+      const response = await fetch(`${BASE_URL}/dailyentry/addEntry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId }), // userId is passed from button
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        console.error("❌ Error adding entry:", data);
-        Alert.alert("Error", data.message || "Failed to add user entry.");
-        return;
-      }
-
-      Alert.alert("Success", "✅ Entry added successfully!");
-      console.log("📦 Server Response:", data);
-
-      // --- NEW: Refresh daily data if user is on that tab ---
-      if (selected === "B") {
+      if (response.ok) {
+        Alert.alert("Success", "✅ Entry added successfully!");
         fetchDailyData();
-      }
-      
+        await fetchUser(); // <-- 4. Call fetchUser() here
+      } else Alert.alert("Error", data.message || "Failed to add entry.");
     } catch (error) {
       console.error("⚠️ Network error:", error);
-      Alert.alert(
-        "Error",
-        "Network error. Please check your connection or server status."
-      );
+      Alert.alert("Error", "A network error occurred.");
     }
   };
-  
-  // --- NEW FUNCTION TO SAVE MANUAL ENTRY (UPDATED) ---
-  const handleSaveEntry = async () => {
-    // 1. Basic Validation
-    if (!entryQuantity || !entryAmount) {
-      Alert.alert("Error", "Please fill in all fields.");
+
+  const handleManualDailyEntry = async () => {
+    if (!manualDate || !manualTotal || !manualAmount) {
+      Alert.alert("Info", "⚠️ Please fill all fields");
       return;
     }
-    if (!user?._id) {
-      Alert.alert("Error", "User ID not found.");
-      return;
-    }
-
-    // 2. Create the new entry object
-    const newEntry = {
-      userId: user._id,
-      date: entryDate.toISOString(),
-      value: parseInt(entryQuantity, 10), // This is the "value"
-      amount: parseFloat(entryAmount),
-    };
-
-    // 3. Save to API (This is a NEW endpoint you must create)
     try {
-      const res = await fetch(`${API_URL}/dailyentry/add`, {
+      const res = await fetch(`${BASE_URL}/dailyentry/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEntry),
+        body: JSON.stringify({
+          userId: user._id, // <-- Use user._id
+          date: manualDate,
+          value: parseFloat(manualTotal),
+          amount: parseFloat(manualAmount),
+        }),
       });
-
+      const result = await res.json();
       if (res.ok) {
-        // 4. Give user feedback and clear the form
-        Alert.alert("Success", "Data saved successfully!");
-        setEntryDate(new Date());
-        setEntryQuantity("");
-        setEntryAmount("");
-        
-        // 5. Refresh the daily data list
+        Alert.alert("Success", "✅ Manual daily entry added!");
+        setManualDate("");
+        setManualTotal("");
+        setManualAmount("");
         fetchDailyData();
-
-        // --- HIDE FORM ON SUCCESS ---
-        setIsManualFormVisible(false);
-      } else {
-         const data = await res.json();
-         Alert.alert("Error", data.message || "Failed to save entry.");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to save data.");
-      console.error(error);
+        await fetchUser(); // <-- 4. Call fetchUser() here
+      } else Alert.alert("Error", result.message || "Failed to add entry");
+    } catch (err) {
+      console.error("❌ Error adding manual entry:", err);
     }
   };
 
-  // --- Main Render ---
+  // === Daily Edit/Delete handlers ===
+  const handleEditDailyEntry = (entry) => {
+    setEditingDailyId(entry._id);
+    setEditDailyDate(entry.date?.split("T")[0] || "");
+    setEditDailyTotal(String(entry.dailyTotal)); // Ensure string for input
+    setEditDailyAmount(String(entry.dailyAmount)); // Ensure string for input
+  };
 
-  // Note: The main 'loading' is now just for sessions
-  // 'dailyLoading' is handled inside the tab
-  if (loading && selected === 'A') {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6b21a8" />
-        <Text>Loading sessions...</Text>
-      </View>
-    );
-  }
+  const handleCancelDailyEdit = () => {
+    setEditingDailyId(null);
+    setEditDailyDate("");
+    setEditDailyTotal("");
+    setEditDailyAmount("");
+  };
 
+  const handleSaveDailyEdit = async (entryId) => {
+    try {
+      const res = await fetch(`${BASE_URL}/dailyentry/editUserEntry/${user._id}/${entryId}`, { // <-- Use user._id
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: editDailyDate,
+          value: parseFloat(editDailyTotal),
+          amount: parseFloat(editDailyAmount),
+        }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        Alert.alert("Success", "✅ Daily entry updated!");
+        handleCancelDailyEdit();
+        fetchDailyData();
+        await fetchUser(); // <-- 4. Call fetchUser() here
+      } else {
+        Alert.alert("Error", result.message || "Failed to update entry");
+      }
+    } catch (err) {
+      console.error("❌ Error updating daily entry:", err);
+    }
+  };
 
+  const handleDeleteDailyEntry = (entryId) => {
+    Alert.alert("Confirm Delete", "🗑️ Delete this daily entry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await fetch(
+              `${BASE_URL}/dailyentry/deleteUserEntry/${user._id}/${entryId}`, // <-- Use user._id
+              {
+                method: "DELETE",
+              }
+            );
+            const result = await res.json();
+            if (res.ok) {
+              Alert.alert("Success", "✅ Daily entry deleted!");
+              fetchDailyData();
+              await fetchUser(); // <-- 4. Call fetchUser() here
+            } else
+              Alert.alert("Error", result.message || "Failed to delete entry");
+          } catch (err) {
+            console.error("❌ Error deleting entry:", err);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteDate = (date) => {
+    Alert.alert("Confirm Delete", `Delete all entries for ${date}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await fetch(
+              `${BASE_URL}/dailyentry/delete/date/${user._id}/${date}`, // <-- Use user._id
+              { method: "DELETE" }
+            );
+            const data = await res.json();
+
+            if (res.ok) {
+              Alert.alert("Success", `✅ All entries for ${date} deleted`);
+              setDailyData(data.data); // Update frontend instantly
+              fetchDailyData();
+              await fetchUser(); // <-- 4. Call fetchUser() here
+            } else {
+              Alert.alert("Error", `❌ ${data.message}`);
+            }
+          } catch (error) {
+            console.error("Error deleting date entries:", error);
+            Alert.alert("Error", "Server error while deleting date entries");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAddDeposit = async () => {
+    if (!depositAmount && !discountAmount) {
+      Alert.alert("Info", "⚠️ Please enter deposit or discount amount");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/deposit/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user._id, // <-- Use user._id
+          depositAmount: parseFloat(depositAmount) || 0,
+          discountAmount: parseFloat(discountAmount) || 0,
+          message,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert("Success", "✅ Deposit / Discount added successfully!");
+        setDepositAmount("");
+        setDiscountAmount("");
+        setMessage("");
+        await fetchUser(); // <-- 4. THIS IS THE FIX
+      } else {
+        Alert.alert("Error", data.message || "❌ Failed to add deposit");
+      }
+    } catch (error) {
+      console.error("Error adding deposit:", error);
+      Alert.alert("Error", "Server error while adding deposit");
+    }
+  };
+
+  const fetchDepositHistory = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/deposit/user/${user._id}`); // <-- Use user._id
+      const data = await res.json();
+      if (res.ok) setDeposits(data || []);
+      else console.error(data.message || "Failed to fetch deposit history");
+    } catch (error) {
+      console.error("Error fetching deposit history:", error);
+    }
+  };
+
+  // === Render ===
+  // UI renders from the 'user' state variable
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back to Dashboard</Text>
-        </TouchableOpacity>
+    <ScrollView style={styles.container}>
+      <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Text style={styles.backLink}>← Back to Dashboard</Text>
+      </TouchableOpacity>
 
-        {/* USER CARD */}
-        <View style={styles.card}>
-          <Text style={styles.name}>{user.fullName}</Text>
-          <Text style={styles.cardText}>Username: {user.username}</Text>
-          <Text style={styles.cardText}>Email: {user.email}</Text>
-          <Text style={styles.cardText}>Phone: {user.phone}</Text>
-          <Text style={styles.cardText}>Role: {user.role}</Text>
-          <Text style={styles.cardText}>
-            Registered: {new Date(user.createdAt).toLocaleDateString()}
-          </Text>
+      {/* USER CARD */}
+      <View style={styles.card}>
+        <Text style={styles.heading1}>{user.fullName}</Text>
+        <Text style={styles.text}>
+          Pending Amount: {user.pendingAmount}
+        </Text>
+        <Text style={styles.text}>
+          Phone: {user.phone}
+        </Text>
+        <Text style={styles.text}>
+          Role: {user.role}
+        </Text>
+        <Text style={styles.text}>
+          Discount Amount: {user.discountAmount}
+        </Text>
+        <Text style={styles.text}>
+          Registered: {formatDateDMY(new Date(user.createdAt))}
+        </Text>
 
-          
-          
-          
-          {/* --- FILTER BUTTONS --- */}
-          <View style={styles.filterContainer}>
-            <TouchableOpacity
-              style={[
-                styles.Filterbtn,
-                selected === "A" && styles.activeButton,
-              ]}
-              onPress={() => setSelected("A")}
+        {/* Filter Buttons */}
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            onPress={() => setFilterType("session")}
+            style={[
+              styles.filterButton,
+              filterType === "session"
+                ? styles.activeFilter
+                : styles.inactiveFilter,
+            ]}
+          >
+            <Text
+              style={
+                filterType === "session"
+                  ? styles.activeFilterText
+                  : styles.inactiveFilterText
+              }
             >
-              <Text
-                style={[
-                  styles.filterBtnText,
-                  selected === "A" && styles.activeFilterBtnText,
-                ]}
-              >
-                🚜 Session
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.Filterbtn,
-                selected === "B" && styles.activeButton,
-              ]}
-              onPress={() => setSelected("B")}
+              Session Data
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFilterType("daily")}
+            style={[
+              styles.filterButton,
+              filterType === "daily"
+                ? styles.activeFilter
+                : styles.inactiveFilter,
+            ]}
+          >
+            <Text
+              style={
+                filterType === "daily"
+                  ? styles.activeFilterText
+                  : styles.inactiveFilterText
+              }
             >
-              <Text
-                style={[
-                  styles.filterBtnText,
-                  selected === "B" && styles.activeFilterBtnText,
-                ]}
-              >
-                🏠 Tanker
-              </Text>
-            </TouchableOpacity>
-          </View>
+              Daily Entry Data
+            </Text>
+          </TouchableOpacity>
         </View>
-{selected == "A" ? (<View style={[styles.buttonRow,{   backgroundColor: '#f9f9f9',   // light background
-    borderRadius: 12,             // rounded corners
-    padding: 16,                  // inner space
-    margin: 10,                   // outer space
-    shadowColor: '#000',          // iOS shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,  }]}>
-            <TouchableOpacity style={styles.greenBtn} onPress={handleAddSession}>
-              <Text style={styles.btnText}>Add Session</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.redBtn} onPress={handleEndSession}>
-              <Text style={styles.btnText}>End Session</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.greenBtn, timerRunning && styles.disabledBtn]}
-              disabled={timerRunning}
-              onPress={handleStartRecord}
-            >
-              <Text style={styles.btnText}>Start Record</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.redBtn, !timerRunning && styles.disabledBtn]}
-              disabled={!timerRunning}
-              onPress={handleStopRecord}
-            >
-              <Text style={styles.btnText}>Stop Record</Text>
-            </TouchableOpacity>
-          </View>):(
-          
-          // --- WRAP TANKER TAB CONTENT IN A VIEW ---
-          <View> 
-            <View style={{    backgroundColor: '#f9f9f9',   
-              borderRadius: 12,            
-              padding: 16,
-                            
-              margin: 10,                  
-              shadowColor: '#000',          
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 4,  }}>
-              <TouchableOpacity style={styles.tankerBtn} onPress={handleTanker}>
-                <Text style={styles.btnText}>Add Tanker</Text>
-              </TouchableOpacity>
-               {!isManualFormVisible ? (
-              // --- "Add Manually" Button ---
-              <View style={{ 
-                marginVertical:10
-                
-              }}>
-                <TouchableOpacity 
-                  style={styles.blueBtn} // NEW
-                  onPress={() => setIsManualFormVisible(true)}
-                >
-                  <Text style={styles.btnText}>Add Manually</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              // --- NEW MANUAL ENTRY FORM ---
-              <View style={[styles.card,{marginVertical:20}]}>
-                <Text style={styles.name}>Add Manual Entry</Text>
-                
-                <Text style={styles.label}>Date</Text>
-                <TouchableOpacity 
-                  onPress={() => showPicker({
-                    mode: 'date', // Specify 'date' mode
-                    date: entryDate,
-                    onConfirm: (date) => setEntryDate(date),
-                  })} 
-                  style={styles.datePickerButton}
-                >
-                  <Text style={styles.datePickerText}>{entryDate.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-  
-                <Text style={styles.label}>Quantity</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., 5"
-                  keyboardType="numeric"
-                  value={entryQuantity}
-                  onChangeText={setEntryQuantity}
-                />
-  
-                <Text style={styles.label}>Amount (₹)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., 150.00"
-                  keyboardType="decimal-pad"
-                  value={entryAmount}
-                  onChangeText={setEntryAmount}
-                />
-  
-                {/* --- NEW BUTTON ROW --- */}
-                <View style={styles.formButtonRow}>
-                  <TouchableOpacity 
-                    style={styles.cancelFormBtn} // NEW
-                    onPress={() => setIsManualFormVisible(false)}
-                  >
-                    <Text style={styles.btnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.saveFormBtn} // NEW
-                    onPress={handleSaveEntry}
-                  >
-                    <Text style={styles.btnText}>Save Entry</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            </View>
 
-            {/* --- NEW CONDITIONAL LOGIC --- */}
-           
+        {/* === DEPOSIT / DISCOUNT SECTION === */}
+        <View style={styles.depositCard}>
+          <View style={styles.depositHeader}>
+            <Text style={styles.heading2}>💰 Deposit Money</Text>
+            <TouchableOpacity
+              onPress={() => setShowDepositForm(!showDepositForm)}
+              style={styles.buttonGreen}
+            >
+              <Text style={styles.buttonText}>
+                {showDepositForm ? "Close" : "Deposit"}
+              </Text>
+            </TouchableOpacity>
           </View>
         
-        )}
-        {/* --- CONTENT AREA --- */}
-        {selected == "A" ? 
-        (
 
-          
-          // --- SESSION LIST ---
-          sessions.map((session, idx) => {
-            const sessionRecords = records.filter(
-              (r) => r.sessionId === session._id
-            );
-            const totalDurationReadable = session.totalDurationReadable;
-            const totalCost = session.totalCost;
-            const isOpen = openSession[session._id];
+          {showDepositForm && (
+            <View style={styles.depositForm}>
+              <View>
+                <Text style={styles.label}>Deposit Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={depositAmount}
+                  onChangeText={setDepositAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                />
+              </View>
+              <View>
+                <Text style={styles.label}>Discount Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={discountAmount}
+                  onChangeText={setDiscountAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                />
+              </View>
+              <View>
+                <Text style={styles.label}>Message</Text>
+                <TextInput
+                  style={styles.input}
+                  value={message}
+                  onChangeText={setMessage}
+                  placeholder="Optional message"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleAddDeposit}
+                style={[styles.buttonBlue, { marginTop: 10 }]}
+              >
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-            return (
-              <View key={session._id} style={styles.sessionCard}>
-                {/* Session Header */}
-                <View style={styles.sessionHeader}>
-                  <View style={styles.sessionHeaderLeft}>
-                    <Text style={styles.sessionTitle}>
-                      Session {session.sessionNo || idx + 1}
-                    </Text>
+
+        </View>
+      </View>
+      <View style={{
+  backgroundColor: "#f9fafb",
+  borderWidth: 1,
+  borderColor: "#d1d5db",
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 12
+}}>
+<View>
+    <TouchableOpacity
+            onPress={() => {
+              setShowDepositHistory(!showDepositHistory);
+              if (!showDepositHistory) fetchDepositHistory();
+            }}
+            style={[
+              styles.buttonBlue,
+              { marginTop: 10, alignSelf: "" },
+            ]}
+          >
+            <Text style={styles.buttonText}>
+              {showDepositHistory
+                ? "Hide Deposit History"
+                : "View Deposit History"}
+            </Text>
+          </TouchableOpacity>
+</View>
+          {showDepositHistory && (
+            <View style={styles.historyContainer}>
+              <Text style={styles.heading3}>📜 Deposit History</Text>
+              {deposits.length === 0 ? (
+                <Text style={styles.text}>No deposit history found.</Text>
+              ) : (
+                <View style={styles.table}>
+                  {renderTableRow(
+                    ["Date", "Deposit (₹)", "Discount (₹)", "Message"],
+                    "header",
+                    true
+                  )}
+                  {deposits.map((dep) => (
+                    <View key={dep._id} style={styles.tableRow}>
+                      <Text style={styles.tableCell}>
+                        {formatDateDMY(dep.createdAt)}-
+                        {format12Hour(dep.createdAt)}
+                      </Text>
+                      <Text style={[styles.tableCell, { color: "green" }]}>
+                        ₹{dep.depositAmount || 0}
+                      </Text>
+                      <Text style={[styles.tableCell, { color: "red" }]}>
+                        ₹{dep.discountAmount || 0}
+                      </Text>
+                      <Text style={styles.tableCell}>{dep.message || "-"}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+      </View>
+
+      {/* === DAILY ENTRY DATA SECTION === */}
+      {filterType === "daily" && (
+        <View>
+          <View style={styles.card}>
+            <TouchableOpacity
+              onPress={() => handleAddData(user._id)} // <-- Pass user._id
+              style={[
+                styles.buttonGreen,
+                { marginBottom: 16, alignSelf: "flex-start" },
+              ]}
+            >
+              <Text style={styles.buttonText}>Add Today's Entry</Text>
+            </TouchableOpacity>
+
+            <View style={styles.manualEntryForm}>
+              <Text style={styles.heading3}>Add Daily Entry Manually</Text>
+              <View>
+                <Text style={styles.label}>Date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={manualDate}
+                  onChangeText={setManualDate}
+                  placeholder="YYYY-MM-DD"
+                />
+              </View>
+              <View>
+                <Text style={styles.label}>Value</Text>
+                <TextInput
+                  style={styles.input}
+                  value={manualTotal}
+                  onChangeText={setManualTotal}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View>
+                <Text style={styles.label}>Amount</Text>
+                <TextInput
+                  style={styles.input}
+                  value={manualAmount}
+                  onChangeText={setManualAmount}
+                  keyboardType="numeric"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleManualDailyEntry}
+                style={[styles.buttonGreen, { marginTop: 10 }]}
+              >
+                <Text style={styles.buttonText}>Add Entry</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.heading2}>📅 Daily Entries</Text>
+            {!dailyData?.days || dailyData.days.length === 0 ? (
+              <Text>No daily entries found.</Text>
+            ) : (
+              <View>
+                {dailyData.days.map((day) => (
+                  <View key={day._id} style={styles.collapsibleContainer}>
                     <TouchableOpacity
-                      onPress={() => handleDeleteSession(session._id)}
-                      style={styles.deleteSessionBtn}
+                      onPress={() => toggleDaily(day._id)}
+                      style={styles.collapsibleHeader}
                     >
-                      <Text style={styles.deleteSessionBtnText}>Delete</Text>
+                      <Text style={styles.collapsibleHeaderText}>
+                        {formatDateDMY(day.date)}
+                      </Text>
+                      <Text style={styles.collapsibleHeaderSubtitle}>
+                        Tanker: {day.dailyTotal || 0} | Cost: {day.dailyAmount}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteDate(day.date)}
+                        style={styles.buttonRedSmall}
+                      >
+                        <Text style={styles.buttonTextSmall}>Delete Date</Text>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+
+                    {openDaily[day._id] && (
+                      <View style={styles.collapsibleContent}>
+                        {!day.entries || day.entries.length === 0 ? (
+                          <Text>No entries available for this day.</Text>
+                        ) : (
+                          <View style={styles.table}>
+                            {renderTableRow(
+                              ["Tanker", "Amount (₹)", "Created At", "Actions"],
+                              "header",
+                              true
+                            )}
+                            {day.entries.map((entry) => (
+                              <View key={entry._id} style={styles.tableRow}>
+                                {editingDailyId === entry._id ? (
+                                  <>
+                                    <TextInput
+                                      style={styles.tableInput}
+                                      value={editDailyTotal}
+                                      onChangeText={setEditDailyTotal}
+                                      keyboardType="numeric"
+                                    />
+                                    <TextInput
+                                      style={styles.tableInput}
+                                      value={editDailyAmount}
+                                      onChangeText={setEditDailyAmount}
+                                      keyboardType="numeric"
+                                    />
+                                    <Text style={styles.tableCell}>
+                                      {formatDateDMY(entry.createdAt)}
+                                    </Text>
+                                    <View style={styles.tableCell}>
+                                      <TouchableOpacity
+                                        onPress={() =>
+                                          handleSaveDailyEdit(entry._id)
+                                        }
+                                        style={styles.buttonBlueSmall}
+                                      >
+                                        <Text style={styles.buttonTextSmall}>
+                                          Save
+                                        </Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        onPress={handleCancelDailyEdit}
+                                        style={styles.buttonGraySmall}
+                                      >
+                                        <Text style={styles.buttonTextSmall}>
+                                          Cancel
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Text style={styles.tableCell}>
+                                      {entry.value}
+                                    </Text>
+                                    <Text style={styles.tableCell}>
+                                      ₹{entry.amount}
+                                    </Text>
+                                    <Text style={styles.tableCell}>
+                                      {format12Hour(entry.createdAt)}
+                                    </Text>
+                                    <View style={styles.tableCell}>
+                                      <TouchableOpacity
+                                        onPress={() =>
+                                          handleEditDailyEntry(entry)
+                                        }
+                                        style={styles.buttonYellowSmall}
+                                      >
+                                        <Text style={styles.buttonTextSmall}>
+                                          Edit
+                                        </Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        onPress={() =>
+                                          handleDeleteDailyEntry(entry._id)
+                                        }
+                                        style={styles.buttonRedSmall}
+                                      >
+                                        <Text style={styles.buttonTextSmall}>
+                                          Delete
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </>
+                                )}
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* === SESSION DATA SECTION === */}
+      {filterType === "session" && (
+        <View style={styles.card}>
+          <Text style={styles.heading2}>🕒 Session Data</Text>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              onPress={handleAddSession}
+              style={styles.buttonGreen}
+            >
+              <Text style={styles.buttonText}>➕ Start Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleEndSession}
+              style={styles.buttonRed}
+            >
+              <Text style={styles.buttonText}>⛔ End Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleStartRecord}
+              disabled={timerRunning}
+              style={timerRunning ? styles.buttonDisabled : styles.buttonBlue}
+            >
+              <Text style={styles.buttonText}>▶ Start Timer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleStopRecord}
+              style={styles.buttonOrange}
+            >
+              <Text style={styles.buttonText}>⏹ Stop Timer</Text>
+            </TouchableOpacity>
+          </View>
+
+          {session.length === 0 ? (
+            <Text>No sessions found.</Text>
+          ) : (
+            session.map((s) => (
+              <View key={s._id} style={styles.sessionBox}>
+                <View style={styles.sessionHeader}>
+                  <View>
+                    <Text>
+                      Start:{" "}
+                      {s.startTime
+                        ? formatDateDMY(new Date(s.startTime))
+                        : "—"}
+                    </Text>
+                    <Text>
+                      Stop:{" "}
+                      {s.stopTime
+                        ? formatDateDMY(new Date(s.startTime))
+                        : "Running..."}
+                    </Text>
+                    <Text style={styles.bold}>
+                      Total Duration: {s.totalDurationReadable}
+                    </Text>
+                    <Text style={styles.bold}>Total Cost: ₹{s.totalCost}</Text>
+                  </View>
+                  <View>
+                    <TouchableOpacity
+                      onPress={() => toggleSession(s._id)}
+                      style={[styles.buttonBlue, { marginBottom: 5 }]}
+                    >
+                      <Text style={styles.buttonText}>
+                        {openSession[s._id] ? "Hide" : "Show"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteSession(s._id)}
+                      style={styles.buttonRed}
+                    >
+                      <Text style={styles.buttonText}>Delete</Text>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => toggleSession(session._id)}>
-                    <Text style={styles.toggleBtnText}>
-                      {isOpen ? "Hide Records ▲" : "Show Records ▼"}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-                <Text style={styles.sessionTimeText}>
-                  {session.startTime &&
-                    new Date(session.startTime).toLocaleString()}
-                  {session.stopTime &&
-                    ` → ${new Date(session.stopTime).toLocaleString()}`}
-                </Text>
 
-                {/* Records Table - Toggleable */}
-                {isOpen && (
-                  <View>
-                    {/* Add Manual Record Form */}
-                    <View style={styles.manualAddForm}>
-                      <Text style={styles.manualAddTitle}>
-                        Add Record Manually
-                      </Text>
-                      <View style={styles.pickerRow}>
-                        <TouchableOpacity
-                          style={styles.pickerBtn}
-                          onPress={() =>
-                            showPicker({
-                              date: newStartTime || new Date(),
-                              onConfirm: (date) => setNewStartTime(date),
-                            })
-                          }
-                        >
-                          <Text style={styles.pickerBtnText}>
-                            {newStartTime
-                              ? newStartTime.toLocaleString()
-                              : "Set Start Time"}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.pickerBtn}
-                          onPress={() =>
-                            showPicker({
-                              date: newStopTime || new Date(),
-                              onConfirm: (date) => setNewStopTime(date),
-                            })
-                          }
-                        >
-                          <Text style={styles.pickerBtnText}>
-                            {newStopTime
-                              ? newStopTime.toLocaleString()
-                              : "Set Stop Time"}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                {openSession[s._id] && (
+                  <View style={styles.sessionContent}>
+                    <Text style={styles.heading3}>Add Record Manually</Text>
+                    <View style={styles.manualEntryForm}>
+                      <Text style={styles.label}>Start Time</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={newStartTime}
+                        onChangeText={setNewStartTime}
+                        placeholder="YYYY-MM-DDTHH:MM"
+                      />
+                      <Text style={styles.label}>Stop Time</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={newStopTime}
+                        onChangeText={setNewStopTime}
+                        placeholder="YYYY-MM-DDTHH:MM"
+                      />
                       <TouchableOpacity
-                        style={styles.addRecordBtn}
-                        onPress={() => handleAddRecord(session._id)}
+                        onPress={() => handleAddRecord(s._id)}
+                        style={[styles.buttonGreen, { marginTop: 10 }]}
                       >
-                        <Text style={styles.btnText}>Add Record</Text>
+                        <Text style={styles.buttonText}>Add Record</Text>
                       </TouchableOpacity>
                     </View>
 
-                    {/* Records List */}
-                    <View style={styles.recordsTable}>
-                      {/* Header Row */}
-                      <View style={styles.tableRowHeader}>
-                        <Text
-                          style={[
-                            styles.tableCell,
-                            styles.tableHeader,
-                            { flex: 2 },
-                          ]}
-                        >
-                          Date
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tableCell,
-                            styles.tableHeader,
-                            { flex: 2 },
-                          ]}
-                        >
-                          Start
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tableCell,
-                            styles.tableHeader,
-                            { flex: 2 },
-                          ]}
-                        >
-                          Stop
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tableCell,
-                            styles.tableHeader,
-                            { flex: 3 },
-                          ]}
-                        >
-                          Duration
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tableCell,
-                            styles.tableHeader,
-                            { flex: 3, textAlign: "right" },
-                          ]}
-                        >
-                          Actions
-                        </Text>
+                    {/* Records Table */}
+                    {records.filter((r) => r.sessionId === s._id).length ===
+                    0 ? (
+                      <Text>No records found.</Text>
+                    ) : (
+                      <View style={styles.table}>
+                        {renderTableRow(
+                          ["Date", "Start", "Stop", "Duration", "Actions"],
+                          "header",
+                          true
+                        )}
+                        {records
+                          .filter((r) => r.sessionId === s._id)
+                          .map((record) => (
+                            <View key={record._id} style={styles.tableRow}>
+                              {editingRecordId === record._id ? (
+                                <>
+                                  <Text style={styles.tableCell}>
+                                    {formatDateDMY(record.startTime)}
+                                  </Text>
+                                  <TextInput
+                                    style={styles.tableInput}
+                                    value={editStartTime}
+                                    onChangeText={setEditStartTime}
+                                  />
+                                  <TextInput
+                                    style={styles.tableInput}
+                                    value={editStopTime}
+                                    onChangeText={setEditStopTime}
+                                  />
+                                  <Text style={styles.tableCell}>
+                                    {record.durationReadable}
+                                  </Text>
+                                  <View style={styles.tableCell}>
+                                    <TouchableOpacity
+                                      onPress={() => handleSaveEdit(record)}
+                                      style={styles.buttonBlueSmall}
+                                    >
+                                      <Text style={styles.buttonTextSmall}>
+                                        Save
+                                      </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      onPress={handleCancelEdit}
+                                      style={styles.buttonGraySmall}
+                                    >
+                                      <Text style={styles.buttonTextSmall}>
+                                        Cancel
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </>
+                              ) : (
+                                <>
+                                  <Text style={styles.tableCell}>
+                                    {formatDateDMY(record.startTime)}
+                                  </Text>
+                                  <Text style={styles.tableCell}>
+                                    {format12Hour(record.startTime)}
+                                  </Text>
+                                  <Text style={styles.tableCell}>
+                                    {record.stopTime
+                                      ? format12Hour(record.stopTime)
+                                      : "Running..."}
+                                  </Text>
+                                  <Text style={styles.tableCell}>
+                                    {record.durationReadable}
+                                  </Text>
+                                  <View style={styles.tableCell}>
+                                    <TouchableOpacity
+                                      onPress={() => handleEditClick(record)}
+                                      style={styles.buttonYellowSmall}
+                                    >
+                                      <Text style={styles.buttonTextSmall}>
+                                        Edit
+                                      </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      onPress={() => handleDelete(record)}
+                                      style={styles.buttonRedSmall}
+                                    >
+                                      <Text style={styles.buttonTextSmall}>
+                                        Delete
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </>
+                              )}
+                            </View>
+                          ))}
                       </View>
-
-                      {/* Data Rows */}
-                      {sessionRecords.map((r) =>
-                        editingRecordId === r._id ? (
-                          // --- Edit Mode ---
-                          <View key={r._id} style={styles.tableRowEdit}>
-                            <TouchableOpacity
-                              style={styles.editPickerBtn}
-                              onPress={() =>
-                                showPicker({
-                                  date: editStartTime || new Date(),
-                                  onConfirm: (date) => setEditStartTime(date),
-                                })
-                              }
-                            >
-                              <Text style={styles.pickerBtnTextSmall}>
-                                {editStartTime
-                                  ? editStartTime.toLocaleString()
-                                  : "Set Start"}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.editPickerBtn}
-                              onPress={() =>
-                                showPicker({
-                                  date: editStopTime || new Date(),
-                                  onConfirm: (date) => setEditStopTime(date),
-                                })
-                              }
-                            >
-                              <Text style={styles.pickerBtnTextSmall}>
-                                {editStopTime
-                                  ? editStopTime.toLocaleString()
-                                  : "Set Stop"}
-                              </Text>
-                            </TouchableOpacity>
-                            <View style={styles.editActions}>
-                              <TouchableOpacity
-                                style={styles.saveBtn}
-                                onPress={() => handleSaveEdit(r)}
-                              >
-                                <Text style={styles.btnTextSmall}>Save</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.cancelBtn}
-                                onPress={handleCancelEdit}
-                              >
-                                <Text style={styles.btnTextSmall}>Cancel</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        ) : (
-                          // --- Display Mode ---
-                          <View key={r._id} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, { flex: 2 }]}>
-                              {formatDateDMY(r.sessionDate)}
-                            </Text>
-                            <Text style={[styles.tableCell, { flex: 2 }]}>
-                              {format12Hour(r.startTime)}
-                            </Text>
-                            <Text style={[styles.tableCell, { flex: 2 }]}>
-                              {format12Hour(r.stopTime)}
-                            </Text>
-                            <Text style={[styles.tableCell, { flex: 3 }]}>
-                              {r.durationReadable}
-                            </Text>
-                            <View
-                              style={[
-                                styles.tableCell,
-                                {
-                                  flex: 3,
-                                  flexDirection: "row",
-                                  justifyContent: "flex-end",
-                                },
-                              ]}
-                            >
-                              <TouchableOpacity
-                                style={styles.editBtn}
-                                onPress={() => handleEditClick(r)}
-                              >
-                                <Text style={styles.btnTextSmall}>Edit</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.deleteBtn}
-                                onPress={() => handleDelete(r)}
-                              >
-                                <Text style={styles.btnTextSmall}>Delete</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        )
-                      )}
-                    </View>
-                    <Text style={styles.sessionTotalText}>
-                      Total Duration: {totalDurationReadable} | Total Cost: ₹
-                      {totalCost}
+                    )}
+                    <Text
+                      style={[
+                        styles.bold,
+                        { marginTop: 10, textAlign: "right" },
+                      ]}
+                    >
+                      Total Duration: {s.totalDurationReadable} | Total Cost: ₹
+                      {s.totalCost}
                     </Text>
                   </View>
                 )}
               </View>
-            );
-          })
-        ) : (
-          // --- NEW DAILY/TANKER LIST ---
-          <View style={styles.card}>
-            <Text style={styles.name}>Daily Entries</Text>
-            {dailyLoading ? (
-              <ActivityIndicator
-                size="large"
-                color="#6b21a8"
-                style={{ marginVertical: 20 }}
-              />
-            ) : (
-              <View style={styles.recordsTable}>
-                {/* Header Row */}
-                <View style={styles.tableRowHeader}>
-                  <Text style={[styles.tableHeader, { flex: 2 }]}>Date</Text>
-                  <Text style={[styles.tableHeader, { flex: 1.5 }]}>Total</Text>
-                  <Text
-                    style={[
-                      styles.tableHeader,
-                      { flex: 1.5, textAlign: "right" },
-                    ]}
-                  >
-                    Amount
-                  </Text>
-                </View>
-
-                {dailyData.length === 0 ? (
-                  <Text style={styles.emptyText}>No daily entries found.</Text>
-                ) : (
-                  // Map over dailyData
-                  dailyData.map((entry) => (
-                    <View
-                      key={entry._id || entry.date}
-                      style={styles.tableRow}
-                    >
-                      <Text style={[styles.tableCell, { flex: 2 }]}>
-                        {formatDateDMY(entry.date)}
-                      </Text>
-                      <Text style={[styles.tableCell, { flex: 1.5 }]}>
-                        {entry.dailyTotal} Tanker
-                      </Text>
-                      <Text
-                        style={[
-                          styles.tableCell,
-                          { flex: 1.5, textAlign: "right" },
-                        ]}
-                      >
-                        ₹{entry.dailyAmount}
-                      </Text>
-                    </View>
-                  ))
-                )}
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Global DateTimePicker Modal */}
-      <DateTimePickerModal
-        isVisible={isPickerVisible}
-        mode={pickerConfig.mode} 
-        date={pickerConfig.date || new Date()}
-        onConfirm={pickerConfig.onConfirm}
-        onCancel={pickerConfig.onCancel}
-      />
-    </SafeAreaView>
+            ))
+          )}
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
-// --- STYLES (Added emptyText) ---
+// StyleSheet for all components
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f3f4f6" },
-  container: { padding: 16 },
-  backBtn: { color: "#2563eb", marginBottom: 10, fontSize: 16 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+  container: {
+    flex: 1,
     padding: 16,
+    backgroundColor: "#f3f4f6",
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20, // Added padding
+    textAlign: "center", // Ensure text is centered
+  },
+  errorText: {
+    color: "red",
+    fontSize: 16,
+  },
+  notFoundImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 20,
+    opacity: 0.7,
+  },
+  backLink: {
+    color: "#3b82f6",
     marginBottom: 16,
-    elevation: 2,
+    fontSize: 16,
+  },
+  card: {
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 1.4,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
-  name: { fontSize: 22, fontWeight: "bold", marginBottom: 8, color: "#111827" },
-  cardText: { fontSize: 14, marginBottom: 4, color: "#374151" },
+  heading1: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  heading2: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  heading3: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  text: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  bold: {
+    fontWeight: "bold",
+  },
+  filterContainer: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  filterButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  activeFilter: {
+    backgroundColor: "#2563eb",
+  },
+  inactiveFilter: {
+    backgroundColor: "#e5e7eb",
+  },
+  activeFilterText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  inactiveFilterText: {
+    color: "#374151",
+  },
+  depositCard: {
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  depositHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  depositForm: {
+    borderTopWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingTop: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 10,
+    backgroundColor: "white",
+  },
   buttonRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+    marginBottom: 16,
+  },
+  buttonGreen: {
+    backgroundColor: "#10b981",
+    padding: 10,
+    borderRadius: 6,
+  },
+  buttonBlue: {
+    backgroundColor: "#3b82f6",
+    padding: 10,
+    borderRadius: 6,
+  },
+  buttonRed: {
+    backgroundColor: "#ef4444",
+    padding: 10,
+    borderRadius: 6,
+  },
+  buttonOrange: {
+    backgroundColor: "#f97316",
+    padding: 10,
+    borderRadius: 6,
+  },
+  buttonDisabled: {
+    backgroundColor: "#9ca3af",
+    padding: 10,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  buttonGreenSmall: {
+    backgroundColor: "#10b981",
+    padding: 5,
+    borderRadius: 4,
+    margin: 2,
+  },
+  buttonBlueSmall: {
+    backgroundColor: "#3b82f6",
+    padding: 5,
+    borderRadius: 4,
+    margin: 2,
+  },
+  buttonRedSmall: {
+    backgroundColor: "#ef4444",
+    padding: 5,
+    borderRadius: 4,
+    margin: 2,
+  },
+  buttonYellowSmall: {
+    backgroundColor: "#f59e0b",
+    padding: 5,
+    borderRadius: 4,
+    margin: 2,
+  },
+  buttonGraySmall: {
+    backgroundColor: "#6b7280",
+    padding: 5,
+    borderRadius: 4,
+    margin: 2,
+  },
+  buttonTextSmall: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  historyContainer: {
     marginTop: 16,
+    borderTopWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingTop: 12,
   },
-  greenBtn: {
-    backgroundColor: "#16a34a",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: "center",
-    flex: 1,
-    minWidth: 120,
+  manualEntryForm: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    backgroundColor: "#f9fafb",
   },
-  redBtn: {
-    backgroundColor: "#dc2626",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: "center",
-    flex: 1,
-    minWidth: 120,
+  collapsibleContainer: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: "hidden",
   },
-  // --- NEW BLUE BUTTON ---
-  blueBtn: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tankerButtonContainer: {
-    marginTop: 10,
-    alignItems: "flex-end",
-  },
-  // Filter Button Container
-  filterContainer: {
-    marginTop: 16,
+  collapsibleHeader: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
     flexDirection: "row",
-    width: "100%",
-    gap: 10,
-    justifyContent: "center",
-  },
-  Filterbtn: {
-    flex: 1,
-    backgroundColor: "#e5e7eb", // Inactive bg
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  activeButton: {
-    backgroundColor: "#007AFF", // Active bg
+  collapsibleHeaderText: {
+    fontWeight: "bold",
+    fontSize: 16,
   },
-  filterBtnText: {
-    color: "#374151", // Inactive text
-    fontWeight: "600",
+  collapsibleHeaderSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
   },
-  activeFilterBtnText: {
-    color: "#FFFFFF", // Active text
-    fontWeight: "600",
+  collapsibleContent: {
+    padding: 12,
   },
-  // End Filter Button Styles
-  tankerBtn: {
-    backgroundColor: "green",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  disabledBtn: { opacity: 0.5 },
-  btnText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
-  btnTextSmall: { color: "#fff", fontWeight: "bold", fontSize: 12 },
-  sessionCard: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 14,
+  sessionBox: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    padding: 12,
     marginBottom: 12,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    borderRadius: 8,
+    backgroundColor: "#f9fafb",
   },
   sessionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    paddingBottom: 8,
-    marginBottom: 8,
+    alignItems: "flex-start",
   },
-  sessionHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  sessionTitle: { fontSize: 18, fontWeight: "600", color: "#111827" },
-  deleteSessionBtn: {
-    backgroundColor: "#ef4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  deleteSessionBtnText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  toggleBtnText: {
-    color: "#2563eb",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  sessionTimeText: { fontSize: 12, color: "#6b7280", marginBottom: 12 },
-  manualAddForm: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 10,
-    borderWidth: 1,
+  sessionContent: {
+    borderTopWidth: 1,
     borderColor: "#e5e7eb",
+    marginTop: 12,
+    paddingTop: 12,
   },
-  manualAddTitle: { fontSize: 16, fontWeight: "600", marginBottom: 12 },
-  pickerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 12,
-  },
-  pickerBtn: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 6,
+
+  // Table Styles
+  table: {
     borderWidth: 1,
     borderColor: "#d1d5db",
-    backgroundColor: "#fff",
-    alignItems: "center",
-  },
-  pickerBtnText: { color: "#374151", fontSize: 12 },
-  pickerBtnTextSmall: { color: "#374151", fontSize: 10 },
-  addRecordBtn: {
-    backgroundColor: "#16a34a",
-    padding: 10,
     borderRadius: 6,
-    alignItems: "center",
-  },
-  recordsTable: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 8,
-    overflow: "hidden",
     marginTop: 10,
   },
   tableRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12, // Increased padding
-    paddingHorizontal: 8, // Adjusted padding
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderColor: "#e5e7eb",
   },
-  tableRowHeader: {
-    flexDirection: "row",
-    paddingVertical: 10,
-    paddingHorizontal: 8, // Adjusted padding
-    backgroundColor: "#f3f4f6",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  tableRowEdit: {
-    padding: 10,
-    backgroundColor: "#fef9c3",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  tableCell: { fontSize: 14, color: "#374151", flex: 1 }, // Increased font size
-  tableHeader: { fontWeight: "bold", fontSize: 14, color: "#111827" }, // Increased font size
-  editPickerBtn: {
+  tableHeader: {
+    fontWeight: "bold",
+    backgroundColor: "#f9fafb",
     padding: 8,
-    borderRadius: 6,
+    flex: 1,
+  },
+  tableCell: {
+    flex: 1,
+    padding: 8,
+    flexWrap: "wrap", // Allow content to wrap
+  },
+  tableInput: {
     borderWidth: 1,
     borderColor: "#d1d5db",
-    backgroundColor: "#fff",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  editActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
-  editBtn: {
-    backgroundColor: "#f59e0b",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    padding: 4,
     borderRadius: 4,
-    marginRight: 6,
-  },
-  deleteBtn: {
-    backgroundColor: "#ef4444",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  saveBtn: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-  },
-  cancelBtn: {
-    backgroundColor: "#6b7280",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-  },
-  sessionTotalText: {
-    textAlign: "right",
-    fontWeight: "bold",
-    marginTop: 10,
-    fontSize: 14,
-  },
-  center: {
+    margin: 4,
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f3f4f6",
-  },
-  // --- NEW STYLE ---
-  emptyText: {
-    padding: 20,
-    textAlign: "center",
-    color: "#6B7280", // text-gray-500
-    fontSize: 14,
-  },
-  
-  // --- STYLES FOR THE NEW FORM ---
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#111827', // Match app style
-  },
-  input: {
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  datePickerButton: {
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  datePickerText: {
-    fontSize: 16,
-    color: '#374151',
-  },
-
-  // --- NEW STYLES FOR FORM BUTTONS ---
-  formButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 10,
-  },
-  cancelFormBtn: {
-    backgroundColor: '#6b7280', // Gray
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    flex: 1, // Make it share space
-  },
-  saveFormBtn: {
-    backgroundColor: '#16a34a', // Green
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    flex: 1, // Make it share space
   },
 });

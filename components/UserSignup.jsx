@@ -82,7 +82,7 @@ const handleLogin = () => {
           role: "user",
           terms: false,
         });
-        navigation.navigate("userLogin");
+        navigation.navigate("homeScreen");
       } else {
         Alert.alert("Signup Failed ❌", data.error || "Something went wrong");
       }

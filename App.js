@@ -21,6 +21,7 @@ import UserDashboardScreen from "./components/UserDashboard";
 import AdminDashboardScreen from "./components/AdminDashboard";
 import UserDetailScreen from "./components/UserDetail";
 import NavigationTabs from "./components/NavigationTabs";
+import NavigationTabsAdmin from "./components/NavigationTabsAdmin";
 import UserProfileScreen from "./components/UserProfile";
 
 const Stack = createNativeStackNavigator();
@@ -100,9 +101,10 @@ export default function App() {
           <Stack.Screen name="userLogin" component={UserLoginScreen}  />
           <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Dashboard" component={NavigationTabs} options={{ headerShown: false }} />
-          <Stack.Screen name="UserProfileScreen" component={NavigationTabs} options={{ headerShown: false }} />
+          
 
-          <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="adminDashboard" component={NavigationTabsAdmin} options={{ headerShown: false }} />
+          {/* <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} /> */}
           <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
           
         </Stack.Navigator>

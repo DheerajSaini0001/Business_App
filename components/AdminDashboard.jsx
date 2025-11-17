@@ -20,6 +20,16 @@ export default function AdminDashboard() {
 
   const { theme, isDarkMode } = useTheme();
 
+  // This function is kept to handle automatic logout on token expiry
+  const performLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("adminToken");
+      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
+    } catch (e) {
+      Alert.alert("Error", "Logout failed.");
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       const token = await AsyncStorage.getItem("adminToken");
@@ -52,22 +62,6 @@ export default function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", style: "destructive", onPress: performLogout },
-    ]);
-  };
-
-  const performLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("adminToken");
-      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
-    } catch (e) {
-      Alert.alert("Error", "Logout failed.");
-    }
-  };
-
   // Loading
   if (loading)
     return (
@@ -88,32 +82,12 @@ export default function AdminDashboard() {
   // Main render
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.logOut }]}>
-        <Text style={[styles.title, { color: theme.primary }]}>Admin Dashboard</Text>
-        <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: theme.logOuttext }]}
-          onPress={handleLogout}
-        >
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+      {/* Header - Buttons removed */}
+      <View style={[styles.header, { borderBottomColor: theme.logOut,alignContent:"center",justifyContent:"center"  }]}>
+        <Text style={[styles.title, { color: theme.primary,}]}>Admin Dashboard</Text>
       </View>
 
-      {/* Add User Button */}
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          {
-            backgroundColor: theme.primary,
-            shadowColor: theme.primary,
-          },
-        ]}
-        onPress={() => navigation.navigate("userSignup")}
-      >
-        <Text style={[styles.buttonText, { color: theme.buttonText }]}>+ Add New User</Text>
-      </TouchableOpacity>
-
-      {/* User List */}
+      {/* User List - Simplified */}
       <ScrollView contentContainerStyle={styles.userList}>
         {users.length > 0 ? (
           users.map((user) => (
@@ -129,26 +103,14 @@ export default function AdminDashboard() {
               ]}
               onPress={() => navigation.navigate("userDetail", { user })}
             >
+              {/* Name */}
               <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
-              <View style={styles.infoRow}>
-                <Text style={[styles.label, { color: theme.primary }]}>Username: </Text>
-                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.username}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={[styles.label, { color: theme.primary }]}>Email: </Text>
-                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.email}</Text>
-              </View>
+              
+              {/* Phone Number */}
               <View style={styles.infoRow}>
                 <Text style={[styles.label, { color: theme.primary }]}>Phone: </Text>
                 <Text style={[styles.userInfo, { color: theme.subText }]}>{user.phone}</Text>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={[styles.label, { color: theme.primary }]}>Role: </Text>
-                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.role}</Text>
-              </View>
-              <Text style={[styles.date, { color: theme.subText }]}>
-                Registered: {new Date(user.createdAt).toLocaleDateString()}
-              </Text>
             </TouchableOpacity>
           ))
         ) : (
@@ -159,6 +121,7 @@ export default function AdminDashboard() {
   );
 }
 
+// Styles - Removed logoutButton, logoutText, addButton, buttonText, and date
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -167,7 +130,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-between", // This will now just space the title
     alignItems: "center",
     borderBottomWidth: 0.6,
     paddingBottom: 10,
@@ -176,29 +139,8 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "800",
   },
-  logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  logoutText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  addButton: {
-    alignSelf: "center",
-    marginVertical: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    elevation: 4,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
   userList: {
+    paddingTop: 15, // Added some padding since the button is gone
     paddingBottom: 80,
   },
   card: {
@@ -225,11 +167,6 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     fontSize: 15,
-  },
-  date: {
-    marginTop: 8,
-    fontSize: 13,
-    fontStyle: "italic",
   },
   emptyText: {
     textAlign: "center",
