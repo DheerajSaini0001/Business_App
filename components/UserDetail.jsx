@@ -10,13 +10,15 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform, // Platform check ke liye
 } from "react-native";
 // Import React Navigation hooks
 import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Import Date Time Picker
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // === API Base URL ===
-// Change this one line to update your API endpoint everywhere
 const BASE_URL = "https://saini-record-management.onrender.com";
 // =====================
 
@@ -51,14 +53,11 @@ const formatDateDMY = (isoString) => {
 };
 
 export default function UserDetail() {
-  // React Navigation hooks replace react-router-dom
   const route = useRoute();
   const navigation = useNavigation();
-  // Get the user passed from the previous screen
-  const { user: initialUser } = route.params; // <-- 1. Renamed to initialUser
+  const { user: initialUser } = route.params;
 
   // --- State variables ---
-  // 2. Create local state for the user, initialized with the prop
   const [user, setUser] = useState(initialUser);
 
   const [session, setSession] = useState([]);
@@ -67,12 +66,23 @@ export default function UserDetail() {
   const [editingRecordId, setEditingRecordId] = useState(null);
   const [editStartTime, setEditStartTime] = useState("");
   const [editStopTime, setEditStopTime] = useState("");
-  const [newStartTime, setNewStartTime] = useState("");
-  const [newStopTime, setNewStopTime] = useState("");
+  
+  // UPDATED: Start/Stop time ab Date objects honge (initialize with current time)
+  const [newStartTime, setNewStartTime] = useState(new Date());
+  const [newStopTime, setNewStopTime] = useState(new Date());
+
+  // --- Date Picker States ---
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState('date'); // 'date' or 'time'
+  const [activeTimeField, setActiveTimeField] = useState(null); // 'start', 'stop', or 'daily'
+
   const [openSession, setOpenSession] = useState({});
   const [filterType, setFilterType] = useState("session");
   const [dailyData, setDailyData] = useState([]);
-  const [manualDate, setManualDate] = useState("");
+  
+  // UPDATED: manualDate ab Date object hai (Daily Entry ke liye)
+  const [manualDate, setManualDate] = useState(new Date());
+  
   const [manualTotal, setManualTotal] = useState("");
   const [manualAmount, setManualAmount] = useState("");
 
@@ -89,19 +99,69 @@ export default function UserDetail() {
   const [showManualForm, setShowManualForm] = useState(false);
   const [showManualFormSession, setShowManualFormSession] = useState(false);
 
-  // New state to manage collapsible daily entries (replaces <details>)
   const [openDaily, setOpenDaily] = useState({});
 
   const COST_PER_HOUR = 150;
 
-  // 3. Re-introduced fetchUser to refresh local state
+  // --- Date Picker Handlers ---
+  const handleShowPicker = (mode, field) => {
+    setPickerMode(mode);
+    setActiveTimeField(field);
+    setShowPicker(true);
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    // Android par cancel karne par picker band karein
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+    
+    if (selectedDate) {
+      // Logic for Daily Entry (Manual Date)
+      if (activeTimeField === 'daily') {
+          setManualDate(selectedDate);
+      } 
+      // Logic for Session Start Time
+      else if (activeTimeField === 'start') {
+        const current = newStartTime || new Date();
+        if (pickerMode === 'date') {
+            const newDate = new Date(selectedDate);
+            newDate.setHours(current.getHours());
+            newDate.setMinutes(current.getMinutes());
+            setNewStartTime(newDate);
+        } else {
+            const newDate = new Date(current);
+            newDate.setHours(selectedDate.getHours());
+            newDate.setMinutes(selectedDate.getMinutes());
+            setNewStartTime(newDate);
+        }
+      } 
+      // Logic for Session Stop Time
+      else if (activeTimeField === 'stop') {
+        const current = newStopTime || new Date();
+        if (pickerMode === 'date') {
+            const newDate = new Date(selectedDate);
+            newDate.setHours(current.getHours());
+            newDate.setMinutes(current.getMinutes());
+            setNewStopTime(newDate);
+        } else {
+            const newDate = new Date(current);
+            newDate.setHours(selectedDate.getHours());
+            newDate.setMinutes(selectedDate.getMinutes());
+            setNewStopTime(newDate);
+        }
+      }
+    }
+  };
+
+
   const fetchUser = async () => {
-    if (!user?._id) return; // Safety check
+    if (!user?._id) return;
     try {
       const res = await fetch(`${BASE_URL}/admin/users/${user._id}`);
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user); // This updates the local state
+        setUser(data.user);
       } else {
         console.warn("Failed to refresh user:", data.message);
       }
@@ -111,10 +171,9 @@ export default function UserDetail() {
   };
 
 
-  // Fetch session (Updated with BASE_URL and user._id)
   const fetchSession = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/session/${user._id}`); // <-- Use user._id
+      const res = await fetch(`${BASE_URL}/session/${user._id}`);
       const data = await res.json();
       const sessionData = data.session || [];
       setSession(sessionData);
@@ -154,10 +213,9 @@ export default function UserDetail() {
     }
   };
 
-  // Fetch daily data (Updated with BASE_URL and user._id)
   const fetchDailyData = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/dailyentry/${user._id}`); // <-- Use user._id
+      const res = await fetch(`${BASE_URL}/dailyentry/${user._id}`);
       const data = await res.json();
       setDailyData(data.data);
     } catch (err) {
@@ -165,32 +223,26 @@ export default function UserDetail() {
     }
   };
 
-  // useEffect (Updated dependencies)
   useEffect(() => {
     if (filterType === "session") {
       fetchSession();
     } else {
       fetchDailyData();
     }
-  }, [user._id, filterType]); // <-- Use user._id
+  }, [user._id, filterType]);
 
-  // Session toggles (Unchanged)
   const toggleSession = (sessionId) => {
     setOpenSession((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   };
 
-  // New toggle handler for daily entries
   const toggleDaily = (dayId) => {
     setOpenDaily((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
   };
 
-  // === Handlers ===
-  // All handlers updated to use user._id
-
   const handleAddSession = async () => {
     try {
       const token = await AsyncStorage.getItem("adminToken");
-      const res = await fetch(`${BASE_URL}/session/start/${user._id}`, { // <-- Use user._id
+      const res = await fetch(`${BASE_URL}/session/start/${user._id}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -270,7 +322,7 @@ export default function UserDetail() {
       );
       if (res.ok) {
         fetchSession();
-        await fetchUser(); // <-- 4. Call fetchUser() here
+        await fetchUser();
       }
     } catch (err) {
       console.error(err);
@@ -279,9 +331,16 @@ export default function UserDetail() {
 
   const handleAddRecord = async (sessionId) => {
     const token = await AsyncStorage.getItem("adminToken");
+    
+    // Check if dates are valid
     if (!newStartTime || !newStopTime)
       return Alert.alert("Info", "Select start and stop time.");
-    if (new Date(newStartTime) >= new Date(newStopTime))
+      
+    // Convert Date objects to Date type for comparison
+    const start = new Date(newStartTime);
+    const stop = new Date(newStopTime);
+
+    if (start >= stop)
       return Alert.alert("Info", "Stop must be after start.");
 
     try {
@@ -291,15 +350,16 @@ export default function UserDetail() {
           "Authorization": `Bearer ${token}` 
         },
         body: JSON.stringify({
-          startTime: new Date(newStartTime).toISOString(),
-          stopTime: new Date(newStopTime).toISOString(),
+          startTime: start.toISOString(),
+          stopTime: stop.toISOString(),
         }),
       });
       if (res.ok) {
         fetchSession();
-        await fetchUser(); // <-- 4. Call fetchUser() here
-        setNewStartTime("");
-        setNewStopTime("");
+        await fetchUser();
+        // Reset to current time
+        setNewStartTime(new Date());
+        setNewStopTime(new Date());
       } else {
         const data = await res.json();
         Alert.alert("Error", data.message || "Failed to add record");
@@ -309,7 +369,7 @@ export default function UserDetail() {
     }
   };
 
-  // Edit/Cancel handlers (Unchanged)
+  // Edit/Cancel handlers
   const handleEditClick = (record) => {
     setEditingRecordId(record._id);
     setEditStartTime(toLocalInputString(record.startTime));
@@ -340,7 +400,7 @@ export default function UserDetail() {
       );
       if (res.ok) {
         fetchSession();
-        await fetchUser(); // <-- 4. Call fetchUser() here
+        await fetchUser();
         handleCancelEdit();
       }
     } catch (err) {
@@ -365,7 +425,7 @@ export default function UserDetail() {
             );
             if (res.ok) {
               fetchSession();
-              await fetchUser(); // <-- 4. Call fetchUser() here
+              await fetchUser();
             }
           } catch (err) {
             console.error(err);
@@ -396,7 +456,7 @@ export default function UserDetail() {
               if (res.ok) {
                 Alert.alert("Success", "Session deleted successfully!");
                 fetchSession();
-                await fetchUser(); // <-- 4. Call fetchUser() here
+                await fetchUser();
               } else {
                 Alert.alert(
                   "Error",
@@ -421,13 +481,13 @@ export default function UserDetail() {
         headers: { "Content-Type": "application/json",
           "Authorization": `Bearer ${token}` 
          },
-        body: JSON.stringify({ userId }), // userId is passed from button
+        body: JSON.stringify({ userId }),
       });
       const data = await response.json();
       if (response.ok) {
         Alert.alert("Success", "✅ Entry added successfully!");
         fetchDailyData();
-        await fetchUser(); // <-- 4. Call fetchUser() here
+        await fetchUser();
       } else Alert.alert("Error", data.message || "Failed to add entry.");
     } catch (error) {
       console.error("⚠️ Network error:", error);
@@ -441,6 +501,10 @@ export default function UserDetail() {
       Alert.alert("Info", "⚠️ Please fill all fields");
       return;
     }
+
+    // Convert Date object to YYYY-MM-DD string for API
+    const formattedDate = manualDate.toISOString().split('T')[0];
+
     try {
       const res = await fetch(`${BASE_URL}/dailyentry/add`, {
         method: "POST",
@@ -448,8 +512,8 @@ export default function UserDetail() {
           "Authorization": `Bearer ${token}` 
          },
         body: JSON.stringify({
-          userId: user._id, // <-- Use user._id
-          date: manualDate,
+          userId: user._id,
+          date: formattedDate, // Send formatted string
           value: parseFloat(manualTotal),
           amount: parseFloat(manualAmount),
         }),
@@ -457,11 +521,11 @@ export default function UserDetail() {
       const result = await res.json();
       if (res.ok) {
         Alert.alert("Success", "✅ Manual daily entry added!");
-        setManualDate("");
+        setManualDate(new Date()); // Reset to today
         setManualTotal("");
         setManualAmount("");
         fetchDailyData();
-        await fetchUser(); // <-- 4. Call fetchUser() here
+        await fetchUser();
       } else Alert.alert("Error", result.message || "Failed to add entry");
     } catch (err) {
       console.error("❌ Error adding manual entry:", err);
@@ -472,8 +536,8 @@ export default function UserDetail() {
   const handleEditDailyEntry = (entry) => {
     setEditingDailyId(entry._id);
     setEditDailyDate(entry.date?.split("T")[0] || "");
-    setEditDailyTotal(String(entry.dailyTotal)); // Ensure string for input
-    setEditDailyAmount(String(entry.dailyAmount)); // Ensure string for input
+    setEditDailyTotal(String(entry.dailyTotal));
+    setEditDailyAmount(String(entry.dailyAmount));
   };
 
   const handleCancelDailyEdit = () => {
@@ -486,7 +550,7 @@ export default function UserDetail() {
   const handleSaveDailyEdit = async (entryId) => {
     const token = await AsyncStorage.getItem("adminToken");
     try {
-      const res = await fetch(`${BASE_URL}/dailyentry/editUserEntry/${user._id}/${entryId}`, { // <-- Use user._id
+      const res = await fetch(`${BASE_URL}/dailyentry/editUserEntry/${user._id}/${entryId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json",
           "Authorization": `Bearer ${token}` 
@@ -502,7 +566,7 @@ export default function UserDetail() {
         Alert.alert("Success", "✅ Daily entry updated!");
         handleCancelDailyEdit();
         fetchDailyData();
-        await fetchUser(); // <-- 4. Call fetchUser() here
+        await fetchUser();
       } else {
         Alert.alert("Error", result.message || "Failed to update entry");
       }
@@ -521,7 +585,7 @@ export default function UserDetail() {
         onPress: async () => {
           try {
             const res = await fetch(
-              `${BASE_URL}/dailyentry/deleteUserEntry/${user._id}/${entryId}`, // <-- Use user._id
+              `${BASE_URL}/dailyentry/deleteUserEntry/${user._id}/${entryId}`,
               {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` }
@@ -531,7 +595,7 @@ export default function UserDetail() {
             if (res.ok) {
               Alert.alert("Success", "✅ Daily entry deleted!");
               fetchDailyData();
-              await fetchUser(); // <-- 4. Call fetchUser() here
+              await fetchUser();
             } else
               Alert.alert("Error", result.message || "Failed to delete entry");
           } catch (err) {
@@ -552,7 +616,7 @@ export default function UserDetail() {
         onPress: async () => {
           try {
             const res = await fetch(
-              `${BASE_URL}/dailyentry/delete/date/${user._id}/${date}`, // <-- Use user._id
+              `${BASE_URL}/dailyentry/delete/date/${user._id}/${date}`,
               { method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` }
                }
@@ -561,9 +625,9 @@ export default function UserDetail() {
 
             if (res.ok) {
               Alert.alert("Success", `✅ All entries for ${date} deleted`);
-              setDailyData(data.data); // Update frontend instantly
+              setDailyData(data.data);
               fetchDailyData();
-              await fetchUser(); // <-- 4. Call fetchUser() here
+              await fetchUser();
             } else {
               Alert.alert("Error", `❌ ${data.message}`);
             }
@@ -590,7 +654,7 @@ export default function UserDetail() {
           "Authorization": `Bearer ${token}` 
          },
         body: JSON.stringify({
-          userId: user._id, // <-- Use user._id
+          userId: user._id,
           depositAmount: parseFloat(depositAmount) || 0,
           discountAmount: parseFloat(discountAmount) || 0,
           message,
@@ -603,7 +667,7 @@ export default function UserDetail() {
         setDepositAmount("");
         setDiscountAmount("");
         setMessage("");
-        await fetchUser(); // <-- 4. THIS IS THE FIX
+        await fetchUser();
       } else {
         Alert.alert("Error", data.message || "❌ Failed to add deposit");
       }
@@ -615,7 +679,7 @@ export default function UserDetail() {
 
   const fetchDepositHistory = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/deposit/user/${user._id}`); // <-- Use user._id
+      const res = await fetch(`${BASE_URL}/deposit/user/${user._id}`);
       const data = await res.json();
       if (res.ok) setDeposits(data || []);
       else console.error(data.message || "Failed to fetch deposit history");
@@ -632,7 +696,7 @@ export default function UserDetail() {
             key={index}
             style={[
               styles.tableCell,
-              isHeader && styles.bold, // Header text ko bold karega
+              isHeader && styles.bold,
             ]}
           >
             {item}
@@ -643,7 +707,6 @@ export default function UserDetail() {
   };
 
   // === Render ===
-  // UI renders from the 'user' state variable
   return (
     <ScrollView style={styles.container}>
       <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -764,31 +827,31 @@ export default function UserDetail() {
         </View>
       </View>
       <View style={{
-  backgroundColor: "#f9fafb",
-  borderWidth: 1,
-  borderColor: "#d1d5db",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 12
-}}>
-<View>
-    <TouchableOpacity
-            onPress={() => {
-              setShowDepositHistory(!showDepositHistory);
-              if (!showDepositHistory) fetchDepositHistory();
-            }}
-            style={[
-              styles.buttonBlue,
-              { marginTop: 10, alignSelf: "" },
-            ]}
-          >
-            <Text style={styles.buttonText}>
-              {showDepositHistory
-                ? "Hide Deposit History"
-                : "View Deposit History"}
-            </Text>
-          </TouchableOpacity>
-</View>
+        backgroundColor: "#f9fafb",
+        borderWidth: 1,
+        borderColor: "#d1d5db",
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 12
+        }}>
+        <View>
+            <TouchableOpacity
+                    onPress={() => {
+                      setShowDepositHistory(!showDepositHistory);
+                      if (!showDepositHistory) fetchDepositHistory();
+                    }}
+                    style={[
+                      styles.buttonBlue,
+                      { marginTop: 10, alignSelf: "" },
+                    ]}
+                  >
+                    <Text style={styles.buttonText}>
+                      {showDepositHistory
+                        ? "Hide Deposit History"
+                        : "View Deposit History"}
+                    </Text>
+                  </TouchableOpacity>
+        </View>
           {showDepositHistory && (
             <View style={styles.historyContainer}>
               <Text style={styles.heading3}>📜 Deposit History</Text>
@@ -829,7 +892,7 @@ export default function UserDetail() {
         <View style={styles.card}>
           <View style={styles.filterContainer}>
             <TouchableOpacity
-              onPress={() => handleAddData(user._id)} // <-- Pass user._id
+              onPress={() => handleAddData(user._id)}
               style={[styles.buttonGreen,]}
             >
               <Text style={styles.buttonText}>Today's Tanker</Text>
@@ -850,12 +913,18 @@ export default function UserDetail() {
             <View style={styles.manualEntryForm}>
               <View>
                 <Text style={styles.label}>Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={manualDate}
-                  onChangeText={setManualDate}
-                  placeholder="YYYY-MM-DD"
-                />
+                
+                {/* --- REPLACED TEXT INPUT WITH DATE BUTTON --- */}
+                <TouchableOpacity
+                    onPress={() => handleShowPicker('date', 'daily')}
+                    style={styles.dateButton}
+                >
+                    <Text style={{color: '#333', fontSize: 16}}>
+                        {formatDateDMY(manualDate.toISOString())}
+                    </Text>
+                </TouchableOpacity>
+                {/* ------------------------------------------- */}
+
               </View>
               <View>
                 <Text style={styles.label}>Value</Text>
@@ -1103,24 +1172,39 @@ export default function UserDetail() {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+            {/* --- MANUAL FORM WITH CLOCK --- */}
               { showManualFormSession &&(
                 <View>
               <Text style={styles.heading3}>Add Record Manually</Text>
                 <View style={styles.manualEntryForm}>
+                      
+                      {/* START TIME */}
                       <Text style={styles.label}>Start Time</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={newStartTime}
-                        onChangeText={setNewStartTime}
-                        placeholder="YYYY-MM-DDTHH:MM"
-                      />
+                      <View style={styles.pickerContainer}>
+                         {/* Date */}
+                        <TouchableOpacity onPress={() => handleShowPicker('date', 'start')} style={styles.dateButton}>
+                            <Text>{formatDateDMY(newStartTime.toISOString())}</Text>
+                        </TouchableOpacity>
+                         {/* Time */}
+                        <TouchableOpacity onPress={() => handleShowPicker('time', 'start')} style={styles.timeButton}>
+                            <Text>{format12Hour(newStartTime.toISOString())}</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* STOP TIME */}
                       <Text style={styles.label}>Stop Time</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={newStopTime}
-                        onChangeText={setNewStopTime}
-                        placeholder="YYYY-MM-DDTHH:MM"
-                      />
+                      <View style={styles.pickerContainer}>
+                         {/* Date */}
+                         <TouchableOpacity onPress={() => handleShowPicker('date', 'stop')} style={styles.dateButton}>
+                            <Text>{formatDateDMY(newStopTime.toISOString())}</Text>
+                        </TouchableOpacity>
+                         {/* Time */}
+                        <TouchableOpacity onPress={() => handleShowPicker('time', 'stop')} style={styles.timeButton}>
+                            <Text>{format12Hour(newStopTime.toISOString())}</Text>
+                        </TouchableOpacity>
+                      </View>
+
                       <TouchableOpacity
                         onPress={() => handleAddRecord(s._id)}
                         style={[styles.buttonGreen, { marginTop: 10 }]}
@@ -1129,6 +1213,8 @@ export default function UserDetail() {
                       </TouchableOpacity>
                     </View>
                     </View>)}
+             {/* ---------------------------------- */}
+
 
                 {openSession[s._id] && (
                   <View style={styles.sessionContent}>
@@ -1241,11 +1327,30 @@ export default function UserDetail() {
         </View>
        </View>
       )}
+
+      {/* === DATE TIME PICKER MODAL === */}
+      {showPicker && (
+        <DateTimePicker
+          // Check which field is active to show correct value
+          value={
+            activeTimeField === 'daily' 
+            ? manualDate 
+            : activeTimeField === 'start' 
+                ? newStartTime 
+                : newStopTime
+          }
+          mode={pickerMode} // 'date' ya 'time'
+          is24Hour={false}
+          display="default"
+          onChange={handleDateChange}
+        />
+      )}
+
     </ScrollView>
   );
 }
 
-// StyleSheet for all components
+// StyleSheet (Same as before)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1256,8 +1361,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20, // Added padding
-    textAlign: "center", // Ensure text is centered
+    padding: 20, 
+    textAlign: "center", 
   },
   errorText: {
     color: "red",
@@ -1362,6 +1467,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+    marginBottom: 16,
   },
   buttonGreen: {
     backgroundColor: "#10b981",
@@ -1518,5 +1624,30 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     margin: 4,
     flex: 1,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  dateButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 5,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  timeButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 5,
+    marginLeft: 5,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
 });
