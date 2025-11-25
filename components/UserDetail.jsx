@@ -85,6 +85,7 @@ export default function UserDetail() {
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [deposits, setDeposits] = useState([]);
   const [showDepositHistory, setShowDepositHistory] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
 
   // New state to manage collapsible daily entries (replaces <details>)
   const [openDaily, setOpenDaily] = useState({});
@@ -767,19 +768,28 @@ export default function UserDetail() {
       {/* === DAILY ENTRY DATA SECTION === */}
       {filterType === "daily" && (
         <View>
-          <View style={styles.card}>
+        <View style={styles.card}>
+          <View style={styles.filterContainer}>
             <TouchableOpacity
               onPress={() => handleAddData(user._id)} // <-- Pass user._id
-              style={[
-                styles.buttonGreen,
-                { marginBottom: 16, alignSelf: "flex-start" },
-              ]}
+              style={[styles.buttonGreen,]}
             >
-              <Text style={styles.buttonText}>Add Today's Entry</Text>
+              <Text style={styles.buttonText}>Today's Tanker</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              onPress={() => setShowManualForm(!showManualForm)}
+              style={[styles.buttonGreen]}
+            >
+              <Text style={styles.buttonText}>
+                {showManualForm ? "Close" : "Add Entry Manually"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          </View>
+
+            {showManualForm &&( 
             <View style={styles.manualEntryForm}>
-              <Text style={styles.heading3}>Add Daily Entry Manually</Text>
               <View>
                 <Text style={styles.label}>Date</Text>
                 <TextInput
@@ -814,7 +824,7 @@ export default function UserDetail() {
                 <Text style={styles.buttonText}>Add Entry</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          )}
 
           <View style={styles.card}>
             <Text style={styles.heading2}>📅 Daily Entries</Text>
