@@ -628,7 +628,7 @@ export default function UserDetail() {
                   : styles.inactiveFilterText
               }
             >
-              Session Data
+              Session
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -647,15 +647,10 @@ export default function UserDetail() {
                   : styles.inactiveFilterText
               }
             >
-              Daily Entry Data
+              Daily Entry
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* === DEPOSIT / DISCOUNT SECTION === */}
-        <View style={styles.depositCard}>
-          <View style={styles.depositHeader}>
-            <Text style={styles.heading2}>💰 Deposit Money</Text>
+          
             <TouchableOpacity
               onPress={() => setShowDepositForm(!showDepositForm)}
               style={styles.buttonGreen}
@@ -664,9 +659,10 @@ export default function UserDetail() {
                 {showDepositForm ? "Close" : "Deposit"}
               </Text>
             </TouchableOpacity>
-          </View>
-        
+        </View>
 
+        {/* === DEPOSIT / DISCOUNT SECTION === */}
+        <View style={styles.depositCard}>
           {showDepositForm && (
             <View style={styles.depositForm}>
               <View>
@@ -706,8 +702,6 @@ export default function UserDetail() {
               </TouchableOpacity>
             </View>
           )}
-
-
         </View>
       </View>
       <View style={{
@@ -1225,7 +1219,6 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 16,
     marginTop: 8,
   },
   filterButton: {
@@ -1248,15 +1241,12 @@ const styles = StyleSheet.create({
   },
   depositCard: {
     backgroundColor: "white",
-    padding: 16,
     borderRadius: 8,
-    marginTop: 16,
   },
   depositHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
   },
   depositForm: {
     borderTopWidth: 1,
