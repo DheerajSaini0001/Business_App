@@ -87,6 +87,7 @@ export default function UserDetail() {
   const [deposits, setDeposits] = useState([]);
   const [showDepositHistory, setShowDepositHistory] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [showManualFormSession, setShowManualFormSession] = useState(false);
 
   // New state to manage collapsible daily entries (replaces <details>)
   const [openDaily, setOpenDaily] = useState({});
@@ -1071,7 +1072,28 @@ export default function UserDetail() {
                     <Text style={styles.bold}>Total Cost: ₹{s.totalCost}</Text>
                   </View>
                   <View>
+                  <View style={styles.filterContainer}>
                     <TouchableOpacity
+                    onPress={() => setShowManualFormSession(!showManualFormSession)}
+                    style={[styles.buttonGreen,
+                      {marginBottom:4}
+                    ]}
+                  >
+                    <Text style={styles.buttonText}>
+                      {showManualFormSession ? "Close" : "Add"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                      onPress={() => handleDeleteSession(s._id)}
+                      style={[styles.buttonRed,
+                        {marginBottom:4}
+                      ]}
+                      >
+                      <Text style={styles.buttonText}>Delete</Text>
+                    </TouchableOpacity>
+                      </View>
+
+                   <TouchableOpacity
                       onPress={() => toggleSession(s._id)}
                       style={[styles.buttonBlue, { marginBottom: 5 }]}
                     >
@@ -1079,19 +1101,12 @@ export default function UserDetail() {
                         {openSession[s._id] ? "Hide" : "Show"}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteSession(s._id)}
-                      style={styles.buttonRed}
-                    >
-                      <Text style={styles.buttonText}>Delete</Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
-
-                {openSession[s._id] && (
-                  <View style={styles.sessionContent}>
-                    <Text style={styles.heading3}>Add Record Manually</Text>
-                    <View style={styles.manualEntryForm}>
+              { showManualFormSession &&(
+                <View>
+              <Text style={styles.heading3}>Add Record Manually</Text>
+                <View style={styles.manualEntryForm}>
                       <Text style={styles.label}>Start Time</Text>
                       <TextInput
                         style={styles.input}
@@ -1113,7 +1128,10 @@ export default function UserDetail() {
                         <Text style={styles.buttonText}>Add Record</Text>
                       </TouchableOpacity>
                     </View>
+                    </View>)}
 
+                {openSession[s._id] && (
+                  <View style={styles.sessionContent}>
                     {/* Records Table */}
                     {records.filter((r) => r.sessionId === s._id).length ===
                     0 ? (
@@ -1344,7 +1362,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginBottom: 16,
   },
   buttonGreen: {
     backgroundColor: "#10b981",
