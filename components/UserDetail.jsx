@@ -954,9 +954,9 @@ export default function UserDetail() {
 
       {/* === SESSION DATA SECTION === */}
       {filterType === "session" && (
-        <View style={styles.card}>
-          <Text style={styles.heading2}>🕒 Session Data</Text>
-          <View style={styles.buttonRow}>
+        <View>
+          <View style={styles.card}>
+            <View style={styles.buttonRow}>
             <TouchableOpacity
               onPress={handleAddSession}
               style={styles.buttonGreen}
@@ -982,7 +982,12 @@ export default function UserDetail() {
             >
               <Text style={styles.buttonText}>⏹ Stop Timer</Text>
             </TouchableOpacity>
-          </View>
+            </View>
+            </View>
+
+
+          <View style={styles.card}>
+          <Text style={styles.heading2}>🕒 Session Data</Text>
 
           {session.length === 0 ? (
             <Text>No sessions found.</Text>
@@ -1159,6 +1164,7 @@ export default function UserDetail() {
             ))
           )}
         </View>
+       </View>
       )}
     </ScrollView>
   );

@@ -109,7 +109,7 @@ export default function LoginScreen({ navigation }) {
 
       if (response.ok) {
         Alert.alert("Success 🎉", "Login successful!");
-        await AsyncStorage.setItem("token", data.token);
+        await AsyncStorage.setItem("userToken", data.token);
         
         navigation.reset({
           index: 0,
