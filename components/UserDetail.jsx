@@ -13,6 +13,7 @@ import {
 } from "react-native";
 // Import React Navigation hooks
 import { useRoute, useNavigation } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // === API Base URL ===
 // Change this one line to update your API endpoint everywhere
@@ -187,8 +188,10 @@ export default function UserDetail() {
 
   const handleAddSession = async () => {
     try {
+      const token = await AsyncStorage.getItem("adminToken");
       const res = await fetch(`${BASE_URL}/session/start/${user._id}`, { // <-- Use user._id
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         Alert.alert("Success", "New session started!");
@@ -204,11 +207,13 @@ export default function UserDetail() {
   };
 
   const handleEndSession = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
     const runningSession = session.find((s) => !s.stopTime);
     if (!runningSession) return Alert.alert("Info", "No running session found.");
     try {
       const res = await fetch(`${BASE_URL}/session/end/${runningSession._id}`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         Alert.alert("Success", "Session ended!");
@@ -224,6 +229,7 @@ export default function UserDetail() {
   };
 
   const handleStartRecord = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
     if (timerRunning) return;
     const runningSession = session.find((s) => !s.stopTime);
     if (!runningSession)
@@ -232,7 +238,9 @@ export default function UserDetail() {
     try {
       const res = await fetch(`${BASE_URL}/session/addRecord/${runningSession._id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+         "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({ startTime: new Date().toISOString() }),
       });
       if (res.ok) fetchSession();
@@ -242,6 +250,7 @@ export default function UserDetail() {
   };
 
   const handleStopRecord = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
     const runningSession = session.find((s) => !s.stopTime);
     if (!runningSession) return Alert.alert("Info", "No active session found.");
     const runningRecord = records.find((r) => !r.stopTime);
@@ -252,7 +261,9 @@ export default function UserDetail() {
         `${BASE_URL}/session/stopRecord/${runningSession._id}/${runningRecord._id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` 
+           },
           body: JSON.stringify({ stopTime: new Date().toISOString() }),
         }
       );
@@ -266,6 +277,7 @@ export default function UserDetail() {
   };
 
   const handleAddRecord = async (sessionId) => {
+    const token = await AsyncStorage.getItem("adminToken");
     if (!newStartTime || !newStopTime)
       return Alert.alert("Info", "Select start and stop time.");
     if (new Date(newStartTime) >= new Date(newStopTime))
@@ -274,7 +286,9 @@ export default function UserDetail() {
     try {
       const res = await fetch(`${BASE_URL}/session/addRecordToSession/${sessionId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" ,
+          "Authorization": `Bearer ${token}` 
+        },
         body: JSON.stringify({
           startTime: new Date(newStartTime).toISOString(),
           stopTime: new Date(newStopTime).toISOString(),
@@ -307,6 +321,7 @@ export default function UserDetail() {
   };
 
   const handleSaveEdit = async (record) => {
+    const token = await AsyncStorage.getItem("adminToken");
     try {
       const payload = {
         startTime: new Date(editStartTime).toISOString(),
@@ -316,7 +331,9 @@ export default function UserDetail() {
         `${BASE_URL}/session/editRecord/${record.sessionId}/${record._id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` 
+           },
           body: JSON.stringify(payload),
         }
       );
@@ -330,7 +347,8 @@ export default function UserDetail() {
     }
   };
 
-  const handleDelete = (record) => {
+  const handleDelete =async (record) => {
+    const token = await AsyncStorage.getItem("adminToken");
     Alert.alert("Confirm Delete", "Delete this record?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -340,7 +358,9 @@ export default function UserDetail() {
           try {
             const res = await fetch(
               `${BASE_URL}/session/deleteRecord/${record.sessionId}/${record._id}`,
-              { method: "DELETE" }
+              { method: "DELETE" ,
+                headers: { Authorization: `Bearer ${token}` }
+              }
             );
             if (res.ok) {
               fetchSession();
@@ -355,7 +375,8 @@ export default function UserDetail() {
     ]);
   };
 
-  const handleDeleteSession = (sessionId) => {
+  const handleDeleteSession = async (sessionId) => {
+    const token = await AsyncStorage.getItem("adminToken");
     Alert.alert(
       "Confirm Delete",
       "Are you sure you want to delete this session?",
@@ -368,6 +389,7 @@ export default function UserDetail() {
             try {
               const res = await fetch(`${BASE_URL}/session/deleteSession/${sessionId}`, {
                 method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
               });
               const data = await res.json();
               if (res.ok) {
@@ -391,10 +413,13 @@ export default function UserDetail() {
   };
 
   const handleAddData = async (userId) => {
+    const token = await AsyncStorage.getItem("adminToken");
     try {
       const response = await fetch(`${BASE_URL}/dailyentry/addEntry`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({ userId }), // userId is passed from button
       });
       const data = await response.json();
@@ -410,6 +435,7 @@ export default function UserDetail() {
   };
 
   const handleManualDailyEntry = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
     if (!manualDate || !manualTotal || !manualAmount) {
       Alert.alert("Info", "⚠️ Please fill all fields");
       return;
@@ -417,7 +443,9 @@ export default function UserDetail() {
     try {
       const res = await fetch(`${BASE_URL}/dailyentry/add`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({
           userId: user._id, // <-- Use user._id
           date: manualDate,
@@ -455,10 +483,13 @@ export default function UserDetail() {
   };
 
   const handleSaveDailyEdit = async (entryId) => {
+    const token = await AsyncStorage.getItem("adminToken");
     try {
       const res = await fetch(`${BASE_URL}/dailyentry/editUserEntry/${user._id}/${entryId}`, { // <-- Use user._id
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({
           date: editDailyDate,
           value: parseFloat(editDailyTotal),
@@ -479,7 +510,8 @@ export default function UserDetail() {
     }
   };
 
-  const handleDeleteDailyEntry = (entryId) => {
+  const handleDeleteDailyEntry =async (entryId) => {
+    const token = await AsyncStorage.getItem("adminToken");
     Alert.alert("Confirm Delete", "🗑️ Delete this daily entry?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -491,6 +523,7 @@ export default function UserDetail() {
               `${BASE_URL}/dailyentry/deleteUserEntry/${user._id}/${entryId}`, // <-- Use user._id
               {
                 method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
               }
             );
             const result = await res.json();
@@ -508,7 +541,8 @@ export default function UserDetail() {
     ]);
   };
 
-  const handleDeleteDate = (date) => {
+  const handleDeleteDate =async (date) => {
+    const token = await AsyncStorage.getItem("adminToken");
     Alert.alert("Confirm Delete", `Delete all entries for ${date}?`, [
       { text: "Cancel", style: "cancel" },
       {
@@ -518,7 +552,9 @@ export default function UserDetail() {
           try {
             const res = await fetch(
               `${BASE_URL}/dailyentry/delete/date/${user._id}/${date}`, // <-- Use user._id
-              { method: "DELETE" }
+              { method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+               }
             );
             const data = await res.json();
 
@@ -540,6 +576,7 @@ export default function UserDetail() {
   };
 
   const handleAddDeposit = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
     if (!depositAmount && !discountAmount) {
       Alert.alert("Info", "⚠️ Please enter deposit or discount amount");
       return;
@@ -548,7 +585,9 @@ export default function UserDetail() {
     try {
       const res = await fetch(`${BASE_URL}/deposit/add`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+         },
         body: JSON.stringify({
           userId: user._id, // <-- Use user._id
           depositAmount: parseFloat(depositAmount) || 0,
@@ -582,6 +621,24 @@ export default function UserDetail() {
     } catch (error) {
       console.error("Error fetching deposit history:", error);
     }
+  };
+
+  const renderTableRow = (items, type, isHeader) => {
+    return (
+      <View style={[styles.tableRow, isHeader && { backgroundColor: "#e5e7eb" }]}>
+        {items.map((item, index) => (
+          <Text
+            key={index}
+            style={[
+              styles.tableCell,
+              isHeader && styles.bold, // Header text ko bold karega
+            ]}
+          >
+            {item}
+          </Text>
+        ))}
+      </View>
+    );
   };
 
   // === Render ===
