@@ -7,20 +7,27 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  TextInput,
+  RefreshControl,
+  StatusBar
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../Context/ThemeContext";
+import { Ionicons } from '@expo/vector-icons'; // Ensure this is installed
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  
   const navigation = useNavigation();
-
   const { theme, isDarkMode } = useTheme();
 
-  // This function is kept to handle automatic logout on token expiry
+  // --- Helpers ---
   const performLogout = async () => {
     try {
       await AsyncStorage.removeItem("adminToken");
@@ -30,6 +37,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const getInitials = (name) => {
+    if (!name) return "U";
+    const parts = name.split(" ");
+    return parts.length > 1 
+      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() 
+      : name[0].toUpperCase();
+  };
+
+  const formatCurrency = (amount) => {
+    return Number(amount || 0).toLocaleString('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    });
+  };
+
+  // --- Fetch Logic ---
   const fetchUsers = async () => {
     try {
       const token = await AsyncStorage.getItem("adminToken");
@@ -49,12 +73,15 @@ export default function AdminDashboard() {
       }
 
       const data = await res.json();
-      setUsers(data.users || []);
+      const userList = data.users || [];
+      setUsers(userList);
+      setFilteredUsers(userList); // Initialize filtered list
     } catch (err) {
       setError("Failed to load users.");
       if (err.message === "Invalid token") performLogout();
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -62,127 +89,315 @@ export default function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  // Loading
+  // --- Search Logic ---
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    if (text) {
+      const newData = users.filter((item) => {
+        const itemData = item.fullName ? item.fullName.toUpperCase() : "".toUpperCase();
+        const textData = text.toUpperCase();
+        return itemData.indexOf(textData) > -1;
+      });
+      setFilteredUsers(newData);
+    } else {
+      setFilteredUsers(users);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUsers();
+  };
+
+  // --- Calculated Stats ---
+  const totalPending = users.reduce((acc, curr) => acc + (curr.pendingAmount || 0), 0);
+  const totalUsers = users.length;
+
+  // --- Render Loading/Error ---
   if (loading)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.text }]}>Loading users...</Text>
+        <Text style={[styles.loadingText, { color: theme.text }]}>Syncing Data...</Text>
       </View>
     );
 
-  // Error
   if (error)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <Ionicons name="cloud-offline-outline" size={50} color={theme.error} />
         <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+        <TouchableOpacity onPress={fetchUsers} style={[styles.retryBtn, {backgroundColor: theme.primary}]}>
+            <Text style={{color: '#fff'}}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
 
-  // Main render
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header - Buttons removed */}
-      <View style={[styles.header, { borderBottomColor: theme.logOut,alignContent:"center",justifyContent:"center"  }]}>
-        <Text style={[styles.title, { color: theme.primary,}]}>Admin Dashboard</Text>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+      
+      {/* 1. Header & Title */}
+      <View style={styles.headerContainer}>
+        <View>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Users</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.subText }]}>Manage client records</Text>
+        </View>
+        <View style={[styles.headerIcon, { backgroundColor: theme.card }]}>
+             <Ionicons name="people" size={24} color={theme.primary} />
+        </View>
       </View>
 
-      {/* User List - Simplified */}
-      <ScrollView contentContainerStyle={styles.userList}>
-        {users.length > 0 ? (
-          users.map((user) => (
+      {/* 2. Search Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Ionicons name="search" size={20} color={theme.subText} />
+        <TextInput
+          style={[styles.searchInput, { color: theme.text }]}
+          placeholder="Search by name..."
+          placeholderTextColor={theme.subText}
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
+        {searchQuery.length > 0 && (
+             <TouchableOpacity onPress={() => handleSearch("")}>
+                 <Ionicons name="close-circle" size={20} color={theme.subText} />
+             </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+      >
+        
+        {/* 3. Quick Stats Row */}
+        <View style={styles.statsRow}>
+            <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <Text style={[styles.statLabel, {color: theme.subText}]}>Total Clients</Text>
+                <Text style={[styles.statValue, {color: theme.primary}]}>{totalUsers}</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <Text style={[styles.statLabel, {color: theme.subText}]}>Total Pending</Text>
+                <Text style={[styles.statValue, {color: '#FF9800'}]}>{formatCurrency(totalPending)}</Text>
+            </View>
+        </View>
+
+        {/* 4. User List */}
+        <Text style={[styles.sectionTitle, {color: theme.subText}]}>Client List</Text>
+        
+        {filteredUsers.length > 0 ? (
+          filteredUsers.map((user) => (
             <TouchableOpacity
               key={user._id}
               style={[
-                styles.card,
+                styles.userCard,
                 {
                   backgroundColor: theme.card,
                   borderColor: theme.border,
-                  shadowColor: isDarkMode ? "#000" : "#999",
+                  shadowColor: isDarkMode ? "#000" : "#ccc",
                 },
               ]}
               onPress={() => navigation.navigate("userDetail", { user })}
+              activeOpacity={0.7}
             >
-              {/* Name */}
-              <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
-              
-              {/* Phone Number */}
-              <View style={styles.infoRow}>
-                <Text style={[styles.label, { color: theme.primary }]}>Phone: </Text>
-                <Text style={[styles.userInfo, { color: theme.subText }]}>{user.phone}</Text>
+              {/* Left: Avatar */}
+              <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '15' }]}>
+                 <Text style={[styles.avatarText, { color: theme.primary }]}>
+                    {getInitials(user.fullName)}
+                 </Text>
               </View>
+
+              {/* Middle: Info */}
+              <View style={styles.cardInfo}>
+                <Text style={[styles.cardName, { color: theme.text }]}>{user.fullName}</Text>
+                <Text style={[styles.cardPhone, { color: theme.subText }]}>{user.phone}</Text>
+                
+                {/* Badges Row */}
+                <View style={styles.badgesRow}>
+                    {user.pendingAmount > 0 ? (
+                        <View style={[styles.badge, { backgroundColor: '#FFF3E0' }]}>
+                            <Text style={[styles.badgeText, { color: '#FF9800' }]}>Pending: {user.pendingAmount}</Text>
+                        </View>
+                    ) : (
+                         <View style={[styles.badge, { backgroundColor: '#E8F5E9' }]}>
+                            <Text style={[styles.badgeText, { color: '#4CAF50' }]}>Paid</Text>
+                        </View>
+                    )}
+                </View>
+              </View>
+
+              {/* Right: Arrow */}
+              <Ionicons name="chevron-forward" size={20} color={theme.subText} />
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={[styles.emptyText, { color: theme.subText }]}>No users found.</Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={40} color={theme.subText} />
+            <Text style={[styles.emptyText, { color: theme.subText }]}>No users found.</Text>
+          </View>
         )}
       </ScrollView>
     </View>
   );
 }
 
-// Styles - Removed logoutButton, logoutText, addButton, buttonText, and date
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 60,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between", // This will now just space the title
-    alignItems: "center",
-    borderBottomWidth: 0.6,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  userList: {
-    paddingTop: 15, // Added some padding since the button is gone
-    paddingBottom: 80,
-  },
-  card: {
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  infoRow: {
-    flexDirection: "row",
-    marginBottom: 3,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  userInfo: {
-    fontSize: 15,
-  },
-  emptyText: {
-    textAlign: "center",
-    fontSize: 16,
-    marginTop: 40,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+  
+  // Header
+  headerContainer: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+  },
+  headerIcon: {
+      padding: 10,
+      borderRadius: 12,
+  },
+
+  // Search
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    paddingHorizontal: 15,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+
+  // Stats
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 80,
+  },
+  statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 25,
+  },
+  statBox: {
+      width: '48%',
+      padding: 15,
+      borderRadius: 14,
+      elevation: 2,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+  },
+  statLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      marginBottom: 5,
+  },
+  statValue: {
+      fontSize: 18,
+      fontWeight: 'bold',
+  },
+
+  // List
+  sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 10,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+  },
+  userCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 0.5,
+    // Shadows
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  avatarContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 15,
+  },
+  avatarText: {
+      fontSize: 18,
+      fontWeight: 'bold',
+  },
+  cardInfo: {
+      flex: 1,
+  },
+  cardName: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  cardPhone: {
+      fontSize: 13,
+      marginBottom: 6,
+  },
+  badgesRow: {
+      flexDirection: 'row',
+  },
+  badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+  },
+  badgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+  },
+
+  // States
   loadingText: {
     marginTop: 10,
     fontSize: 16,
   },
   errorText: {
+    fontSize: 16,
+    marginBottom: 15,
+  },
+  retryBtn: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 8,
+  },
+  emptyContainer: {
+      marginTop: 50,
+      alignItems: 'center',
+  },
+  emptyText: {
+    marginTop: 10,
     fontSize: 16,
   },
 });

@@ -6,23 +6,24 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  ActivityIndicator, // <-- Waapas add kiya
+  ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../Context/ThemeContext";
-// import { Ionicons } from '@expo/vector-icons'; // Example icon library
+import { Ionicons } from '@expo/vector-icons'; // Ensure this is installed
+
+const { width } = Dimensions.get("window");
 
 export default function AdminProfile() {
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
 
-  // --- States waapas add kar diye ---
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // --- API Fetch Logic ---
   const fetchAdminDetails = async () => {
     try {
       const token = await AsyncStorage.getItem("adminToken");
@@ -30,9 +31,8 @@ export default function AdminProfile() {
         performLogout();
         return;
       }
-      // Yahaan apna correct backend endpoint daalna
       const res = await fetch(
-        "https://saini-record-management.onrender.com/admin/profile", // Example endpoint
+        "https://saini-record-management.onrender.com/admin/detail",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -43,8 +43,7 @@ export default function AdminProfile() {
       }
 
       const data = await res.json();
-      // Apna response check kar lena (data.profile, data.admin, etc.)
-      setProfile(data.profile || data.admin);
+      setProfile(data.admin);
     } catch (err) {
       setError("Failed to load profile.");
       if (err.message === "Invalid token") performLogout();
@@ -53,12 +52,10 @@ export default function AdminProfile() {
     }
   };
 
-  // --- useEffect Hook to fetch data on mount ---
   useEffect(() => {
     fetchAdminDetails();
   }, []);
 
-  // --- Logout Functions (Aapke code se same) ---
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -75,91 +72,148 @@ export default function AdminProfile() {
     }
   };
 
-  // --- Loading State ---
+  // Helper to get initials
+  const getInitials = (name) => {
+    if (!name) return "A";
+    const parts = name.split(" ");
+    return parts.length > 1 
+      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() 
+      : name[0].toUpperCase();
+  };
+
+  // Helper to format currency
+  const formatCurrency = (amount) => {
+    return Number(amount).toLocaleString('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    });
+  };
+
   if (loading)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.text }]}>
-          Loading profile...
+          Fetching Dashboard...
         </Text>
       </View>
     );
 
-  // --- Error State ---
   if (error)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <Ionicons name="alert-circle-outline" size={50} color={theme.error} />
         <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+        <TouchableOpacity onPress={fetchAdminDetails} style={[styles.retryBtn, {backgroundColor: theme.primary}]}>
+            <Text style={{color: '#fff'}}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
 
-  // --- Main Render (Ab data ke saath) ---
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.logOut }]}>
-        <Text style={[styles.title, { color: theme.primary }]}>Admin Profile</Text>
+      {/* Custom Header */}
+      <View style={styles.headerContainer}>
+        <View>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.subText }]}>Admin Dashboard</Text>
+        </View>
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: theme.logOuttext }]}
+          style={[styles.logoutIconBtn, { backgroundColor: theme.logOut + '20' }]} // 20 for opacity
           onPress={handleLogout}
         >
-          <Text style={styles.logoutText}>Logout</Text>
+          <Ionicons name="log-out-outline" size={24} color={theme.logOut} />
         </TouchableOpacity>
       </View>
 
-      {/* Profile Details Section (Ab Dynamic hai) */}
-      <ScrollView contentContainerStyle={styles.profileContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         {profile ? (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-                shadowColor: isDarkMode ? "#000" : "#999",
-              },
-            ]}
-          >
-            {/* <View style={styles.avatarPlaceholder}>
-             <Ionicons name="person" size={50} color={theme.primary} />
-           </View> */}
-
-            <Text
-              style={[styles.userName, { color: theme.text, textAlign: "center" }]}
-            >
-              {profile.fullName}
-            </Text>
-
-            <View style={styles.infoRow}>
-              <Text style={[styles.label, { color: theme.primary }]}>
-                Username:{" "}
+          <>
+            {/* 1. Hero / Profile Card */}
+            <View style={[styles.profileHeaderCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
+                <Text style={[styles.avatarText, { color: theme.primary }]}>
+                  {getInitials(profile.fullName)}
+                </Text>
+              </View>
+              <Text style={[styles.userName, { color: theme.text }]}>
+                {profile.fullName}
               </Text>
-              <Text style={[styles.userInfo, { color: theme.subText }]}>
-                {profile.username}
-              </Text>
+              <Text style={[styles.userRole, { color: theme.primary }]}>Administrator</Text>
+              
+              <View style={styles.divider} />
+              
+              <View style={styles.contactRow}>
+                <Ionicons name="mail-outline" size={18} color={theme.subText} style={{marginRight: 8}} />
+                <Text style={[styles.contactText, { color: theme.subText }]}>{profile.email}</Text>
+              </View>
+              <View style={styles.contactRow}>
+                <Ionicons name="call-outline" size={18} color={theme.subText} style={{marginRight: 8}} />
+                <Text style={[styles.contactText, { color: theme.subText }]}>{profile.phone}</Text>
+              </View>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={[styles.label, { color: theme.primary }]}>Email: </Text>
-              <Text style={[styles.userInfo, { color: theme.subText }]}>
-                {profile.email}
-              </Text>
+            {/* 2. Financial Stats Grid */}
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Financial Overview</Text>
+            
+            <View style={styles.statsGrid}>
+              {/* Total Amount */}
+              <View style={[styles.statCard, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <View style={[styles.iconBox, { backgroundColor: '#E3F2FD' }]}>
+                  <Ionicons name="wallet" size={22} color="#2196F3" />
+                </View>
+                <Text style={[styles.statLabel, { color: theme.subText }]}>Total Amount</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {formatCurrency(profile.totalAmount)}
+                </Text>
+              </View>
+
+              {/* Earnings */}
+              <View style={[styles.statCard, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <View style={[styles.iconBox, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="trending-up" size={22} color="#4CAF50" />
+                </View>
+                <Text style={[styles.statLabel, { color: theme.subText }]}>Earnings</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {formatCurrency(profile.totalEarningAmount)}
+                </Text>
+              </View>
+
+              {/* Pending */}
+              <View style={[styles.statCard, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <View style={[styles.iconBox, { backgroundColor: '#FFF3E0' }]}>
+                  <Ionicons name="time" size={22} color="#FF9800" />
+                </View>
+                <Text style={[styles.statLabel, { color: theme.subText }]}>Pending</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                   {formatCurrency(profile.totalPendingAmount)}
+                </Text>
+              </View>
+
+              {/* Discount */}
+              <View style={[styles.statCard, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+                <View style={[styles.iconBox, { backgroundColor: '#FFEBEE' }]}>
+                  <Ionicons name="pricetag" size={22} color="#F44336" />
+                </View>
+                <Text style={[styles.statLabel, { color: theme.subText }]}>Discount</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {formatCurrency(profile.totalDiscountAmount)}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={[styles.label, { color: theme.primary }]}>Role: </Text>
-              <Text style={[styles.userInfo, { color: theme.subText }]}>
-                {profile.role}
+            {/* 3. Footer Info */}
+            <View style={styles.footerContainer}>
+              <Text style={[styles.footerText, { color: theme.subText }]}>
+                Member since {new Date(profile.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
               </Text>
             </View>
-
-            <Text style={[styles.date, { color: theme.subText }]}>
-              Registered: {new Date(profile.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
+          </>
         ) : (
-          // Agar profile load na ho (bina error ke)
           <Text style={[styles.emptyText, { color: theme.subText }]}>
             Could not load profile details.
           </Text>
@@ -169,83 +223,158 @@ export default function AdminProfile() {
   );
 }
 
-// --- Styles (Loading/Error styles waapas add kiye) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 60,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 0.6,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  logoutText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  profileContainer: {
-    paddingTop: 20,
-    paddingBottom: 80,
-  },
-  card: {
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  // avatarPlaceholder: { ... },
-  userName: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 15,
-  },
-  infoRow: {
-    flexDirection: "row",
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  userInfo: {
-    fontSize: 16,
-  },
-  date: {
-    marginTop: 10,
-    fontSize: 13,
-    fontStyle: "italic",
-    textAlign: "right",
-  },
-  // --- Loading/Error styles ---
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+  // Header Styles
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  logoutIconBtn: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  
+  // Profile Card Styles
+  profileHeaderCard: {
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 30,
+    // Shadow for iOS
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    // Shadow for Android
+    elevation: 5,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: 'transparent',
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: "bold",
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  userRole: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 16,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    width: '100%',
+    marginBottom: 16,
+    opacity: 0.5,
+  },
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  contactText: {
+    fontSize: 15,
+  },
+
+  // Stats Grid Styles
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 15,
+    marginLeft: 4,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  statCard: {
+    width: (width - 55) / 2, // Calculation for 2 columns with gap
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+
+  // Misc Styles
+  footerContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 16,
   },
   errorText: {
     fontSize: 16,
-    color: "red", // Example error color
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  retryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   emptyText: {
     textAlign: "center",
