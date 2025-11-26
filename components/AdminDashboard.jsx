@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,37 +6,26 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   TextInput,
-  RefreshControl,
   StatusBar
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../Context/ThemeContext";
-import { Ionicons } from '@expo/vector-icons'; // Ensure this is installed
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   
   const navigation = useNavigation();
+  const isFocused = useIsFocused(); // Hook to detect when screen is active
   const { theme, isDarkMode } = useTheme();
 
   // --- Helpers ---
-  const performLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("adminToken");
-      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
-    } catch (e) {
-      Alert.alert("Error", "Logout failed.");
-    }
-  };
-
   const getInitials = (name) => {
     if (!name) return "U";
     const parts = name.split(" ");
@@ -55,10 +44,13 @@ export default function AdminDashboard() {
 
   // --- Fetch Logic ---
   const fetchUsers = async () => {
+    // Only show full loading spinner on first load, not on subsequent focus updates
+    if (users.length === 0) setLoading(true); 
+    
     try {
       const token = await AsyncStorage.getItem("adminToken");
       if (!token) {
-        performLogout();
+        navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
         return;
       }
 
@@ -68,45 +60,52 @@ export default function AdminDashboard() {
       );
 
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) throw new Error("Invalid token");
+        if (res.status === 401 || res.status === 403) {
+             navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
+             return;
+        }
         throw new Error("Server error");
       }
 
       const data = await res.json();
       const userList = data.users || [];
       setUsers(userList);
-      setFilteredUsers(userList); // Initialize filtered list
+      
+      // If search query exists, maintain the filter, else show all
+      if (searchQuery) {
+          handleSearch(searchQuery, userList);
+      } else {
+          setFilteredUsers(userList);
+      }
+      
+      setError(""); 
     } catch (err) {
       setError("Failed to load users.");
-      if (err.message === "Invalid token") performLogout();
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
+  // --- Automatic Refresh Logic ---
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isFocused) {
+      fetchUsers();
+    }
+  }, [isFocused]); // Runs every time the screen comes into focus
 
   // --- Search Logic ---
-  const handleSearch = (text) => {
+  const handleSearch = (text, currentUsers = users) => {
     setSearchQuery(text);
     if (text) {
-      const newData = users.filter((item) => {
+      const newData = currentUsers.filter((item) => {
         const itemData = item.fullName ? item.fullName.toUpperCase() : "".toUpperCase();
         const textData = text.toUpperCase();
         return itemData.indexOf(textData) > -1;
       });
       setFilteredUsers(newData);
     } else {
-      setFilteredUsers(users);
+      setFilteredUsers(currentUsers);
     }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchUsers();
   };
 
   // --- Calculated Stats ---
@@ -114,7 +113,7 @@ export default function AdminDashboard() {
   const totalUsers = users.length;
 
   // --- Render Loading/Error ---
-  if (loading)
+  if (loading && users.length === 0)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
@@ -122,7 +121,7 @@ export default function AdminDashboard() {
       </View>
     );
 
-  if (error)
+  if (error && users.length === 0)
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Ionicons name="cloud-offline-outline" size={50} color={theme.error} />
@@ -144,7 +143,7 @@ export default function AdminDashboard() {
           <Text style={[styles.headerSubtitle, { color: theme.subText }]}>Manage client records</Text>
         </View>
         <View style={[styles.headerIcon, { backgroundColor: theme.card }]}>
-             <Ionicons name="people" size={24} color={theme.primary} />
+              <Ionicons name="people" size={24} color={theme.primary} />
         </View>
       </View>
 
@@ -156,7 +155,7 @@ export default function AdminDashboard() {
           placeholder="Search by name..."
           placeholderTextColor={theme.subText}
           value={searchQuery}
-          onChangeText={handleSearch}
+          onChangeText={(text) => handleSearch(text)}
         />
         {searchQuery.length > 0 && (
              <TouchableOpacity onPress={() => handleSearch("")}>
@@ -168,7 +167,7 @@ export default function AdminDashboard() {
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+        // RefreshControl removed as per request
       >
         
         {/* 3. Quick Stats Row */}
@@ -204,7 +203,7 @@ export default function AdminDashboard() {
               {/* Left: Avatar */}
               <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '15' }]}>
                  <Text style={[styles.avatarText, { color: theme.primary }]}>
-                    {getInitials(user.fullName)}
+                   {getInitials(user.fullName)}
                  </Text>
               </View>
 
@@ -254,7 +253,7 @@ const styles = StyleSheet.create({
   
   // Header
   headerContainer: {
-    paddingTop: 60,
+    paddingTop: 10,
     paddingHorizontal: 20,
     paddingBottom: 15,
     flexDirection: 'row',

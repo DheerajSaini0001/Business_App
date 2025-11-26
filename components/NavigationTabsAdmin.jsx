@@ -33,7 +33,7 @@ export default function NavigationTabsAdmin() {
           backgroundColor: theme.card,
           borderTopWidth: 0.5,
           borderTopColor: isDarkMode ? "#333" : "#ccc",
-          height: 60,
+          height: 65,
           paddingBottom: 5,
         },
         tabBarLabelStyle: {
