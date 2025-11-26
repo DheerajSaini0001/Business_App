@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet, // ScrollView hata diya
+  StyleSheet,
   Alert,
   ActivityIndicator,
   Dimensions,
@@ -138,7 +138,6 @@ export default function AdminProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* Changed ScrollView to View here */}
         <View style={styles.contentContainer}>
           {profile && (
             <>
@@ -209,17 +208,31 @@ export default function AdminProfile() {
                 </View>
               </View>
 
-              {/* === 3. LOGOUT BUTTON & Version - Pushed to bottom via Flex if needed, or kept here */}
+              {/* === 3. BOTTOM BUTTONS === */}
               <View style={styles.bottomSection}>
+                  
+                  {/* --- NEW ADD USER BUTTON --- */}
                   <TouchableOpacity
-                      style={[styles.logoutBtn, { backgroundColor: '#FEE2E2' }]} 
+                      style={[styles.menuBtn, { backgroundColor: isDarkMode ? '#1F2937' : '#E0E7FF' }]} 
+                      onPress={() => navigation.navigate("userSignup")}
+                      activeOpacity={0.8}
+                  >
+                      <View style={styles.menuIconContainer}>
+                        <Ionicons name="person-add" size={20} color={theme.primary} />
+                      </View>
+                      <Text style={[styles.menuBtnText, { color: theme.primary }]}>Add New User</Text>
+                  </TouchableOpacity>
+
+                  {/* --- LOGOUT BUTTON --- */}
+                  <TouchableOpacity
+                      style={[styles.menuBtn, { backgroundColor: isDarkMode ? '#3f1515' : '#FEE2E2' }]} 
                       onPress={handleLogout}
                       activeOpacity={0.8}
                   >
-                      <View style={styles.logoutIconContainer}>
+                      <View style={styles.menuIconContainer}>
                         <Ionicons name="log-out" size={20} color="#EF4444" />
                       </View>
-                      <Text style={styles.logoutText}>Log Out</Text>
+                      <Text style={[styles.menuBtnText, { color: '#EF4444' }]}>Log Out</Text>
                   </TouchableOpacity>
 
                   <Text style={[styles.versionText, { color: theme.subText }]}>Version 1.0.0</Text>
@@ -256,7 +269,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  // === Updated Content Style (No Scroll) ===
   contentContainer: { 
     flex: 1, 
     paddingHorizontal: 24, 
@@ -268,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     alignItems: "center",
-    marginBottom: 20, // Thoda kam kiya
+    marginBottom: 20, 
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -310,24 +322,24 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4 },
   statValue: { fontSize: 17, fontWeight: "bold" },
 
-  // Bottom Section to fill space
+  // Bottom Section (Add User & Logout)
   bottomSection: {
-    marginTop: 'auto', // Push to bottom if there is space
+    marginTop: 'auto', 
   },
 
-  // Logout
-  logoutBtn: {
+  // Menu Buttons (Shared Style)
+  menuBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: 20,
-    marginBottom: 10,
+    marginBottom: 12, // Gap between buttons
   },
-  logoutIconContainer: { marginRight: 8 },
-  logoutText: { fontSize: 16, fontWeight: '700', color: '#EF4444' },
+  menuIconContainer: { marginRight: 8 },
+  menuBtnText: { fontSize: 16, fontWeight: '700' },
   
-  versionText: { textAlign: 'center', fontSize: 12, opacity: 0.5 },
+  versionText: { textAlign: 'center', fontSize: 12, opacity: 0.5, marginTop: 5 },
 
   // Loading/Error
   loadingText: { marginTop: 12, fontSize: 16, fontWeight: '500' },

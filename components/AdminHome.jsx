@@ -1,5 +1,3 @@
-// AdminHome.jsx
-
 import React, { useRef, useEffect, useState } from "react";
 import {
   View,
@@ -13,13 +11,20 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
-  Platform
+  Platform,
+  LayoutAnimation,
+  UIManager
 } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../Context/ThemeContext";
 
 const BASE_URL = "https://saini-record-management.onrender.com";
+
+// Android Layout Animation Enable
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // === HELPER FUNCTIONS ===
 const formatDate = (isoString) => {
@@ -32,7 +37,6 @@ const formatCurrency = (amount) => {
   return `₹${amount ? amount.toLocaleString('en-IN') : 0}`;
 };
 
-// New Helper: Checks if a date string is "Today" in Local Time
 const isToday = (dateString) => {
     if (!dateString) return false;
     const date = new Date(dateString);
@@ -45,7 +49,7 @@ const isToday = (dateString) => {
 
 export default function AdminHome() {
   const navigation = useNavigation();
-  const isFocused = useIsFocused(); 
+  const isFocused = useIsFocused();
   const { theme, isDarkMode } = useTheme();
   
   // --- Animation Setup ---
@@ -55,16 +59,25 @@ export default function AdminHome() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // --- Toggle States for View All ---
+  const [expandTankers, setExpandTankers] = useState(false);
+  const [expandSessions, setExpandSessions] = useState(false);
+  const [expandDeposits, setExpandDeposits] = useState(false);
+
   // --- Data States ---
   const [todayStats, setTodayStats] = useState({
     todayDeposit: 0,
-    activeSessions: 0,
+    activeSessions: 0, 
+    todaySessionCost: 0, 
     dailyEntriesCount: 0,
     dailyEntriesValue: 0
   });
   
   const [depositHistory, setDepositHistory] = useState([]);
+  const [tankerList, setTankerList] = useState([]);
+  const [sessionList, setSessionList] = useState([]); 
 
+  // --- Animation Effect ---
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -80,13 +93,23 @@ export default function AdminHome() {
         useNativeDriver: true,
       })
     ]).start();
-    
+  }, []);
+
+  useEffect(() => {
     if (isFocused) {
       fetchDashboardData();
     }
-  }, [fadeAnim, slideAnim, isFocused]);
+  }, [isFocused]);
 
-  // --- API CALLS ---
+  // --- TOGGLE FUNCTION WITH ANIMATION ---
+  const toggleSection = (section) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (section === 'tankers') setExpandTankers(!expandTankers);
+    if (section === 'sessions') setExpandSessions(!expandSessions);
+    if (section === 'deposits') setExpandDeposits(!expandDeposits);
+  };
+
+  // --- API CALLS (UNCHANGED) ---
   const fetchDashboardData = async () => {
     if (!refreshing) setLoading(true);
     try {
@@ -96,59 +119,64 @@ export default function AdminHome() {
       // 1. Fetch Deposits
       const resDeposit = await fetch(`${BASE_URL}/deposit/all`, { headers });
       
-      // 2. Fetch Daily Entries (Tankers) - Assuming endpoint exists
-      // Agar ye endpoint nahi hai to ise try-catch me rakha hai taki app crash na ho
-      let tankerData = [];
+      // 2. Fetch Daily Entries
+      let calculatedTankerCount = 0;
+      let calculatedTankerValue = 0;
+      let todaysTankersData = [];
       try {
-          const resDaily = await fetch(`${BASE_URL}/dailyentry/all`, { headers });
+          const resDaily = await fetch(`${BASE_URL}/dailyentry/today/all`, { headers });
           if(resDaily.ok) {
               const d = await resDaily.json();
-              tankerData = Array.isArray(d) ? d : (d.data || []);
-          }
+              if (d.data && Array.isArray(d.data)) {
+                  todaysTankersData = d.data;
+                  todaysTankersData.forEach(userRecord => {
+                      if (userRecord.totalValue) calculatedTankerCount += userRecord.totalValue;
+                      if (userRecord.totalAmount) calculatedTankerValue += userRecord.totalAmount;
+                  });
+              }
+          } 
       } catch(e) { console.log("Daily Entry Fetch Error", e); }
+      setTankerList(todaysTankersData);
 
-      // 3. Fetch Sessions - Assuming endpoint exists
-      let sessionData = [];
+      // 3. Fetch Sessions
+      let todaySessionCount = 0;
+      let totalSessionCost = 0;
+      let todaysSessionsData = [];
       try {
-          const resSession = await fetch(`${BASE_URL}/session/all`, { headers });
+          const resSession = await fetch(`${BASE_URL}/session/today/all`, { headers }); 
           if(resSession.ok) {
               const s = await resSession.json();
-              sessionData = Array.isArray(s) ? s : (s.data || []);
+              if (s.success) {
+                  todaysSessionsData = s.data || []; 
+                  todaySessionCount = s.finalDuration; 
+                  totalSessionCost = s.totalCost || 0; 
+              }
           }
       } catch(e) { console.log("Session Fetch Error", e); }
+      setSessionList(todaysSessionsData); 
 
-
-      // === PROCESS DEPOSIT DATA ===
+      // 4. Process Deposits
       let safeDeposits = [];
       if(resDeposit.ok) {
         const data = await resDeposit.json();
-        // Safety check for array
-        if (Array.isArray(data)) safeDeposits = data;
-        else if (data.data && Array.isArray(data.data)) safeDeposits = data.data;
-        else if (data.deposits && Array.isArray(data.deposits)) safeDeposits = data.deposits;
+        if (data.success && Array.isArray(data.deposits)) {
+            safeDeposits = data.deposits;
+        } else if (Array.isArray(data)) {
+            safeDeposits = data;
+        }
       }
       setDepositHistory(safeDeposits);
 
-
-      // === CALCULATE TODAY'S STATS (Local Time) ===
-      
-      // 1. Today's Deposit
+      // 5. Calculate Stats
       const todaysDepositsList = safeDeposits.filter(d => isToday(d.createdAt));
       const totalDep = todaysDepositsList.reduce((sum, item) => sum + (item.depositAmount || 0), 0);
 
-      // 2. Today's Tankers (Daily Entries)
-      const todaysTankers = tankerData.filter(d => isToday(d.date || d.createdAt));
-      const totalTankerCount = todaysTankers.length;
-
-      // 3. Active Sessions (Running Now)
-      // Check sessions where stopTime is null/undefined
-      const activeSess = sessionData.filter(s => !s.stopTime || s.stopTime === null).length;
-
       setTodayStats({
         todayDeposit: totalDep,
-        activeSessions: activeSess,
-        dailyEntriesCount: totalTankerCount,
-        dailyEntriesValue: 0 // You can calculate value if available
+        activeSessions: todaySessionCount, 
+        todaySessionCost: totalSessionCost,
+        dailyEntriesCount: calculatedTankerCount, 
+        dailyEntriesValue: calculatedTankerValue
       });
 
     } catch (error) {
@@ -164,18 +192,45 @@ export default function AdminHome() {
     fetchDashboardData();
   };
 
-  // --- Render Components ---
-  const StatCard = ({ title, value, subValue, icon, accentColor }) => (
-    <View style={[styles.statCard, { backgroundColor: theme.card, shadowColor: isDarkMode ? "#000" : "#ccc" }]}>
-      <View style={[styles.iconContainer, { backgroundColor: `${accentColor}20` }]}> 
-        <Text style={{ fontSize: 22 }}>{icon}</Text>
-      </View>
-      <View style={styles.statContent}>
-        <Text style={[styles.statTitle, { color: theme.subText }]}>{title}</Text>
-        <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-        {subValue && <Text style={[styles.statSub, { color: accentColor }]}>{subValue}</Text>}
-      </View>
+  // --- NEW COMPACT STAT CARD ---
+  const CompactStatCard = ({ title, value, icon, color, subValue, isPrimary }) => (
+    <View style={[
+        styles.compactCard, 
+        { 
+            backgroundColor: isPrimary ? color : theme.card,
+            borderColor: isPrimary ? color : theme.border,
+            shadowColor: color
+        }
+    ]}>
+        <View style={styles.compactCardHeader}>
+            <View style={[
+                styles.compactIconBox, 
+                { backgroundColor: isPrimary ? 'rgba(255,255,255,0.2)' : color + '15' }
+            ]}>
+                <Text style={{ fontSize: 18 }}>{icon}</Text>
+            </View>
+            {subValue && (
+                <View style={[styles.compactBadge, { backgroundColor: isPrimary ? 'rgba(255,255,255,0.2)' : theme.background }]}>
+                    <Text style={[styles.compactBadgeText, { color: isPrimary ? '#fff' : theme.text }]}>{subValue}</Text>
+                </View>
+            )}
+        </View>
+        <View style={{marginTop: 8}}>
+            <Text style={[styles.compactValue, { color: isPrimary ? '#fff' : theme.text }]}>{value}</Text>
+            <Text style={[styles.compactTitle, { color: isPrimary ? 'rgba(255,255,255,0.8)' : theme.subText }]}>{title}</Text>
+        </View>
     </View>
+  );
+
+  const SectionHeader = ({ title, expanded, onPress }) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeader, { color: theme.text }]}>{title}</Text>
+        <View style={[styles.viewAllBtn, { backgroundColor: expanded ? theme.primary : theme.card }]}> 
+            <Text style={{color: expanded ? '#fff' : theme.primary, fontSize: 11, fontWeight: '700'}}>
+                {expanded ? "Show Less ▲" : "View All ▼"}
+            </Text>
+        </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -188,10 +243,10 @@ export default function AdminHome() {
         <View style={styles.header}>
           <View>
             <Text style={[styles.greeting, { color: theme.subText }]}>Hello, Admin 👋</Text>
-            <Text style={[styles.title, { color: theme.primary }]}>Dashboard</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Overview</Text>
           </View>
           <View style={[styles.dateBadge, { backgroundColor: theme.card }]}>
-             <Text style={[styles.dateText, { color: theme.text }]}>{formatDate(new Date())}</Text>
+             <Text style={[styles.dateText, { color: theme.primary }]}>{formatDate(new Date())}</Text>
           </View>
         </View>
 
@@ -202,76 +257,135 @@ export default function AdminHome() {
         >
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             
-            {/* === STATS GRID === */}
+            {/* === NEW COMPACT STATS GRID === */}
             <View style={styles.statsGrid}>
-              <StatCard 
-                title="Today's Deposit" 
-                value={formatCurrency(todayStats.todayDeposit)} 
-                icon="💰" 
-                accentColor="#10B981" // Emerald
-              />
-              <StatCard 
-                title="Active Sessions" 
-                value={todayStats.activeSessions} 
-                subValue="Running Now"
-                icon="⚡" 
-                accentColor="#F59E0B" // Amber
-              />
-              <StatCard 
-                title="Total Tankers" 
-                value={todayStats.dailyEntriesCount} 
-                subValue="Today's Count"
-                icon="🚛" 
-                accentColor="#6366F1" // Indigo
-              />
-              <StatCard 
-                title="Pending Due" 
-                value="Check" 
-                subValue="View All"
-                icon="⚠️" 
-                accentColor="#EF4444" // Red
-              />
+                {/* Full Width Main Card */}
+                <View style={{ marginBottom: 12 }}>
+                    <CompactStatCard 
+                        title="Today's Deposit" 
+                        value={formatCurrency(todayStats.todayDeposit)} 
+                        icon="💰" 
+                        color="#10B981" 
+                        isPrimary={true}
+                    />
+                </View>
+                
+                {/* Two Columns Row */}
+                <View style={styles.statsRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                        <CompactStatCard 
+                            title="Sessions Cost" 
+                            value={formatCurrency(todayStats.todaySessionCost)} 
+                            subValue={`${todayStats.activeSessions}`}
+                            icon="⚡" 
+                            color="#F59E0B" 
+                            isPrimary={false}
+                        />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                        <CompactStatCard 
+                            title="Tankers Value" 
+                            value={formatCurrency(todayStats.dailyEntriesValue)} 
+                            subValue={`${todayStats.dailyEntriesCount}`}
+                            icon="🚛" 
+                            color="#6366F1" 
+                            isPrimary={false}
+                        />
+                    </View>
+                </View>
             </View>
 
-            {/* === RECENT TRANSACTIONS === */}
-            <View style={styles.sectionHeaderRow}>
-               <Text style={[styles.sectionHeader, { color: theme.text }]}>Recent Transactions</Text>
-               <TouchableOpacity onPress={onRefresh}>
-                  <Text style={{color: theme.primary, fontSize: 12, fontWeight: '600'}}>Refresh</Text>
-               </TouchableOpacity>
-            </View>
+            {/* === SECTION 1: TANKERS === */}
+            <SectionHeader 
+                title="Today's Tankers" 
+                expanded={expandTankers} 
+                onPress={() => toggleSection('tankers')} 
+            />
+            
+            {/* Logic: If expandTankers is true, show ALL, else show slice(0,2) */}
+            {(!tankerList || tankerList.length === 0) ? (
+                 <View style={[styles.emptyContainer, {backgroundColor: theme.card, borderColor: theme.border}]}>
+                    <Text style={{fontSize: 20}}>🚛</Text>
+                    <Text style={[styles.emptyText, {color: theme.subText}]}>No Data</Text>
+                 </View>
+            ) : (
+                <View style={{ paddingBottom: 10 }}>
+                  {(expandTankers ? tankerList : tankerList.slice(0, 2)).map((item, index) => (
+                    <View key={index} style={[styles.transactionCard, { backgroundColor: theme.card, shadowColor: "#000" }]}>
+                        <View style={styles.transLeft}>
+                           <View style={[styles.avatarPlaceholder, { backgroundColor: '#6366F1' }]}>
+                             <Text style={styles.avatarText}>{item.name ? item.name.charAt(0).toUpperCase() : "T"}</Text>
+                           </View>
+                           <View>
+                             <Text style={[styles.transName, { color: theme.text }]}>{item.name}</Text>
+                             <Text style={[styles.transDate, { color: theme.subText }]}>{item.totalValue} Tankers</Text>
+                           </View>
+                        </View>
+                        <Text style={[styles.transAmount, { color: '#6366F1' }]}>{formatCurrency(item.totalAmount)}</Text>
+                    </View>
+                  ))}
+                </View>
+            )}
+
+            {/* === SECTION 2: SESSIONS === */}
+            <SectionHeader 
+                title="Today's Sessions" 
+                expanded={expandSessions} 
+                onPress={() => toggleSection('sessions')} 
+            />
+
+            {(!sessionList || sessionList.length === 0) ? (
+                 <View style={[styles.emptyContainer, {backgroundColor: theme.card, borderColor: theme.border}]}>
+                    <Text style={{fontSize: 20}}>⚡</Text>
+                    <Text style={[styles.emptyText, {color: theme.subText}]}>No Data</Text>
+                 </View>
+            ) : (
+                <View style={{ paddingBottom: 10 }}>
+                  {(expandSessions ? sessionList : sessionList.slice(0, 2)).map((item, index) => (
+                    <View key={index} style={[styles.transactionCard, { backgroundColor: theme.card, shadowColor: "#000" }]}>
+                        <View style={styles.transLeft}>
+                           <View style={[styles.avatarPlaceholder, { backgroundColor: '#F59E0B' }]}>
+                             <Text style={styles.avatarText}>{item.userName ? item.userName.charAt(0).toUpperCase() : "S"}</Text>
+                           </View>
+                           <View>
+                             <Text style={[styles.transName, { color: theme.text }]}>{item.userName}</Text>
+                             <Text style={[styles.transDate, { color: theme.subText }]}>{item.totalDuration || "0 min"}</Text>
+                           </View>
+                        </View>
+                        <Text style={[styles.transAmount, { color: '#F59E0B' }]}>{formatCurrency(item.cost)}</Text>
+                    </View>
+                  ))}
+                </View>
+            )}
+
+            {/* === SECTION 3: DEPOSITS === */}
+            <SectionHeader 
+                title="Recent Deposits" 
+                expanded={expandDeposits} 
+                onPress={() => toggleSection('deposits')} 
+            />
 
             {loading && !refreshing ? (
-                 <ActivityIndicator size="large" color={theme.primary} style={{marginTop: 40}} />
+                 <ActivityIndicator size="small" color={theme.primary} />
             ) : (!depositHistory || depositHistory.length === 0) ? (
-                 <View style={[styles.emptyContainer, {backgroundColor: theme.card}]}>
-                    <Text style={{fontSize: 40, marginBottom: 10}}>📂</Text>
-                    <Text style={[styles.emptyText, {color: theme.subText}]}>No data found</Text>
-                    <Text style={{color: theme.subText, fontSize: 10, textAlign:'center', marginTop: 5}}>Check your internet or backend connection</Text>
+                 <View style={[styles.emptyContainer, {backgroundColor: theme.card, borderColor: theme.border}]}>
+                    <Text style={{fontSize: 20}}>📂</Text>
+                    <Text style={[styles.emptyText, {color: theme.subText}]}>No Data</Text>
                  </View>
             ) : (
                 <View style={{ paddingBottom: 20 }}>
-                  {depositHistory.slice(0, 15).map((dep, index) => (
-                    <View key={index} style={[styles.transactionCard, { backgroundColor: theme.card, shadowColor: isDarkMode ? "#000" : "#ddd" }]}>
+                  {(expandDeposits ? depositHistory : depositHistory.slice(0, 2)).map((dep, index) => (
+                    <View key={index} style={[styles.transactionCard, { backgroundColor: theme.card, shadowColor: "#000" }]}>
                         <View style={styles.transLeft}>
-                           <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primary }]}>
-                              <Text style={styles.avatarText}>
-                                {dep.userId?.fullName ? dep.userId.fullName.charAt(0).toUpperCase() : "U"}
-                              </Text>
+                           <View style={[styles.avatarPlaceholder, { backgroundColor: '#10B981' }]}>
+                             <Text style={styles.avatarText}>{dep.userId?.name ? dep.userId.name.charAt(0).toUpperCase() : "D"}</Text>
                            </View>
                            <View>
-                              <Text style={[styles.transName, { color: theme.text }]}>
-                                {dep.userId?.fullName || dep.userName || "Unknown User"}
-                              </Text>
-                              <Text style={[styles.transDate, { color: theme.subText }]}>
-                                {formatDate(dep.createdAt)}
-                              </Text>
+                             <Text style={[styles.transName, { color: theme.text }]}>{dep.userId?.fullName || "User"}</Text>
+                             <Text style={[styles.transDate, { color: theme.subText }]}>{formatDate(dep.createdAt)}</Text>
                            </View>
                         </View>
-                        <View style={styles.transRight}>
-                           <Text style={styles.transAmount}>+{dep.depositAmount}</Text>
-                           <Text style={[styles.transStatus, { color: '#10B981' }]}>Success</Text>
-                        </View>
+                        <Text style={[styles.transAmount, { color: '#10B981' }]}>+{dep.depositAmount}</Text>
                     </View>
                   ))}
                 </View>
@@ -279,16 +393,6 @@ export default function AdminHome() {
 
           </Animated.View>
         </ScrollView>
-
-        {/* === FLOATING ACTION BUTTON === */}
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
-          onPress={() => navigation.navigate("userSignup")}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
-
       </View>
     </SafeAreaView>
   );
@@ -304,82 +408,88 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 20 : 10,
+    paddingTop: Platform.OS === 'android' ? 25 : 10,
     paddingBottom: 15,
   },
-  greeting: { fontSize: 14, fontWeight: '500' },
-  title: { fontSize: 26, fontWeight: "800", marginTop: 2 },
+  greeting: { fontSize: 12, fontWeight: '600', opacity: 0.7, marginBottom: 2 },
+  title: { fontSize: 26, fontWeight: "800", letterSpacing: -0.5 },
   dateBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    elevation: 2,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)'
   },
   dateText: { fontSize: 12, fontWeight: '700' },
   
-  contentArea: { paddingHorizontal: 20, paddingBottom: 100 },
+  contentArea: { paddingHorizontal: 20, paddingBottom: 80 },
   
-  // Stats Grid
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 25, marginTop: 10 },
-  statCard: { 
-    width: '48%', 
-    padding: 15, 
-    borderRadius: 16, 
-    marginBottom: 15, 
-    elevation: 4, // Android Shadow
-    shadowOffset: { width: 0, height: 4 }, // iOS Shadow
+  // === NEW COMPACT STATS STYLES ===
+  statsGrid: { marginBottom: 20 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  compactCard: {
+    padding: 12,
+    borderRadius: 16,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    flexDirection: 'column',
-    justifyContent: 'space-between'
+    shadowRadius: 4,
+    borderWidth: 1, // Subtle border
   },
-  iconContainer: {
-    width: 40, height: 40, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 10
+  compactCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6
   },
-  statTitle: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: 'bold' },
-  statSub: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  compactIconBox: {
+    width: 36, height: 36, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center'
+  },
+  compactBadge: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6
+  },
+  compactBadgeText: { fontSize: 10, fontWeight: '700' },
+  compactValue: { fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
+  compactTitle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
 
-  // List Section
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionHeader: { fontSize: 18, fontWeight: '700' },
+  // Section Header
+  sectionHeaderRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10, 
+    marginTop: 10,
+    paddingVertical: 5
+  },
+  sectionHeader: { fontSize: 17, fontWeight: '700' },
+  viewAllBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
 
-  // Empty State
+  // Empty State (Compact)
   emptyContainer: {
-    padding: 30, alignItems: 'center', borderRadius: 16,
-    borderWidth: 1, borderStyle: 'dashed', borderColor: '#ccc'
+    padding: 15, alignItems: 'center', borderRadius: 12,
+    borderWidth: 1, borderStyle: 'dashed', marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'center', gap: 10
   },
-  emptyText: { fontSize: 16, fontWeight: '600', marginTop: 10 },
+  emptyText: { fontSize: 14, fontWeight: '500' },
 
-  // Transaction Card (List Item)
+  // Transaction Card (Compact)
   transactionCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderRadius: 16, marginBottom: 12,
-    elevation: 2, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4
+    padding: 12, borderRadius: 14, marginBottom: 8,
+    elevation: 2, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3
   },
-  transLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  transLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarPlaceholder: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 38, height: 38, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center'
   },
   avatarText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   transName: { fontSize: 14, fontWeight: '700' },
-  transDate: { fontSize: 12, marginTop: 2 },
-  transRight: { alignItems: 'flex-end' },
-  transAmount: { fontSize: 16, fontWeight: 'bold', color: '#10B981' },
-  transStatus: { fontSize: 10, fontWeight: '600', marginTop: 2, backgroundColor: '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-
-  // FAB (Add Button)
-  fab: {
-    position: "absolute",
-    bottom: 30,
-    right: 20,
-    width: 60, height: 60,
-    borderRadius: 30,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4
-  },
-  fabText: { fontSize: 30, color: 'white', marginTop: -2 },
+  transDate: { fontSize: 11, marginTop: 1 },
+  transAmount: { fontSize: 15, fontWeight: 'bold' },
 });
