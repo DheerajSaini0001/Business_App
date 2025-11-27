@@ -2,11 +2,11 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
-import { useTheme } from "../Context/ThemeContext"; // 👈 adjust path if needed
+import { useTheme } from "../context/ThemeContext"; // 👈 adjust path if needed
 
 // 👇 Import your screens
-import AdminLogin from "./AdminLogin";
-import LoginScreen from "./Login";
+import AdminLoginScreen from "./AdminLoginScreen";
+import UserLoginScreen from "./UserLoginScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -43,12 +43,12 @@ export default function NavigationTabs() {
       >
         <Tab.Screen
           name="userLogin"
-          component={LoginScreen}
+          component={UserLoginScreen}
           options={{ title: "User" }}
         />
         <Tab.Screen
           name="adminLogin"
-          component={AdminLogin}
+          component={AdminLoginScreen}
           options={{ title: "Admin" }}
         />
       </Tab.Navigator>

@@ -2,17 +2,17 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from "../Context/ThemeContext"; // ✅ Import ThemeContext
+import { useTheme } from "../context/ThemeContext"; // ✅ Import ThemeContext
 
 // 👇 Import your screens
-import AdminDashboardScreen from "./AdminDashboard";
-import AdminHomeScreen from "./AdminHome";
-import AdminProfileScreen from "./AdminProfile";
+import AdminUsersScreen from "../screens/AdminUsersScreen";
+import AdminOverviewScreen from "../screens/AdminOverviewScreen";
+import AdminProfileScreen from "../screens/AdminProfileScreen";
 // import UserHomeScreen from "./UserHomeScreen";
 
 const Tab = createBottomTabNavigator();
 
-export default function NavigationTabsAdmin() {
+export default function AdminTabNavigator() {
   const { theme, isDarkMode } = useTheme(); // ✅ Access theme values
 
   return (
@@ -43,10 +43,10 @@ export default function NavigationTabsAdmin() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={AdminHomeScreen} />
-      <Tab.Screen name="Dashboard" component={AdminDashboardScreen} />
+      <Tab.Screen name="Home" component={AdminOverviewScreen} />
+      <Tab.Screen name="Dashboard" component={AdminUsersScreen} />
       <Tab.Screen name="Profile" component={AdminProfileScreen} />
-     
+
     </Tab.Navigator>
   );
 }

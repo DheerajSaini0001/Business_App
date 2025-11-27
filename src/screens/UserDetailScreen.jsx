@@ -431,7 +431,12 @@ export default function UserDetail() {
    };
 
   const fetchDepositHistory = async () => { 
-    try { const res = await fetch(`${BASE_URL}/deposit/user/${user._id}`); const data = await res.json(); if (res.ok) setDeposits(data || []); } catch (e) {}
+    const token = await AsyncStorage.getItem("adminToken");
+    try { const res = await fetch(`${BASE_URL}/deposit/user/${user._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+    ); const data = await res.json(); if (res.ok) setDeposits(data || []); } catch (e) {}
   };
 
   // === RENDER HELPERS ===

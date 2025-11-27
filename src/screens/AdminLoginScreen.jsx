@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Eye, EyeOff } from "lucide-react-native";
-import { useTheme } from "../Context/ThemeContext"; // 👈 import theme context
+import { useTheme } from "../context/ThemeContext"; // 👈 import theme context
 
 export default function AdminLogin({ navigation }) {
   const { theme, isDarkMode } = useTheme(); // 🎨 get theme and mode

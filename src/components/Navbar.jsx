@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../Context/ThemeContext"; // ✅ import theme hook
+import { useTheme } from "../context/ThemeContext"; // ✅ import theme hook
 
 const Navbar = ({ navigation }) => {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -15,13 +15,13 @@ const Navbar = ({ navigation }) => {
   return (
     <View style={styles.navbar}>
       {/* 🏷️ App Name */}
-      <Text style={styles.title}>Saini Record</Text>
+      <Text style={styles.title}>Saini's Record Management</Text>
 
 
 
       {/* 🍔 Hamburger Icon */}
       <TouchableOpacity onPress={toggleTheme}>
-         <Ionicons
+        <Ionicons
           name={isDarkMode ? "sunny-outline" : "moon-outline"}
           size={24}
           color={theme.text}

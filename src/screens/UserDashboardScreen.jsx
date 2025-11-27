@@ -14,7 +14,7 @@ import {
   UIManager
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useTheme } from "../Context/ThemeContext";
+import { useTheme } from "../context/ThemeContext";
 import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet } from "lucide-react-native";
 
 const API_BASE_URL = "https://saini-record-management.onrender.com";
@@ -49,7 +49,7 @@ export default function HomeScreen({ navigation }) {
   // --- State ---
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Deposit State
   const [deposits, setDeposits] = useState([]);
   const [loadingDeposits, setLoadingDeposits] = useState(false);
@@ -60,7 +60,7 @@ export default function HomeScreen({ navigation }) {
   const [session, setSession] = useState([]);
   const [dailyData, setDailyData] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
-  const [openRecords, setOpenRecords] = useState({}); 
+  const [openRecords, setOpenRecords] = useState({});
 
   // --- Fetch User Data ---
   const fetchUser = async () => {
@@ -141,14 +141,14 @@ export default function HomeScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      
+
       const dailyTotals = Array.isArray(data?.data?.days)
         ? data.data.days.map((day) => ({
-            _id: day._id || day.date,
-            date: day.date,
-            dailyTotal: day.dailyTotal || 0,
-            dailyAmount: day.dailyAmount || 0,
-          }))
+          _id: day._id || day.date,
+          date: day.date,
+          dailyTotal: day.dailyTotal || 0,
+          dailyAmount: day.dailyAmount || 0,
+        }))
         : [];
 
       dailyTotals.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -193,8 +193,8 @@ export default function HomeScreen({ navigation }) {
           onPress: () => console.log("Logout Cancelled"),
           style: "cancel"
         },
-        { 
-          text: "Yes, Logout", 
+        {
+          text: "Yes, Logout",
           onPress: performLogout,
           style: "destructive" // iOS pe red color dega
         }
@@ -235,7 +235,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
-      
+
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <View>
@@ -244,12 +244,12 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity 
-            onPress={toggleTheme} 
+          <TouchableOpacity
+            onPress={toggleTheme}
             style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
           >
-            {isDarkMode ? 
-              <Sun size={20} color="#FDB813" /> : 
+            {isDarkMode ?
+              <Sun size={20} color="#FDB813" /> :
               <Moon size={20} color="#6B7280" />
             }
           </TouchableOpacity>
@@ -262,7 +262,7 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        
+
         {/* --- 1. USER GREETING & SUMMARY --- */}
         <View style={[styles.card, styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.profileHeader}>
@@ -272,41 +272,41 @@ export default function HomeScreen({ navigation }) {
               </Text>
             </View>
             <View>
-                <Text style={[styles.welcomeText, { color: theme.textSecondary }]}>Welcome back,</Text>
-                <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
+              <Text style={[styles.welcomeText, { color: theme.textSecondary }]}>Welcome back,</Text>
+              <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
             </View>
           </View>
-          
+
           <View style={styles.divider} />
-          
+
           <View style={styles.metaInfoRow}>
-             <View style={styles.metaItem}>
-                <Phone size={14} color={theme.textSecondary} />
-                <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.phone || "N/A"}</Text>
-             </View>
-             <View style={styles.metaItem}>
-                <Calendar size={14} color={theme.textSecondary} />
-                <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.createdAt ? formatDateDMY(user.createdAt) : "-"}</Text>
-             </View>
+            <View style={styles.metaItem}>
+              <Phone size={14} color={theme.textSecondary} />
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.phone || "N/A"}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Calendar size={14} color={theme.textSecondary} />
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.createdAt ? formatDateDMY(user.createdAt) : "-"}</Text>
+            </View>
           </View>
         </View>
 
         {/* --- 2. PENDING AMOUNT --- */}
         <View style={[styles.balanceCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-           <View style={styles.balanceHeader}>
-             <View style={styles.balanceIconBg}>
-                <Wallet size={20} color="#DC2626" />
-             </View>
-             <Text style={styles.balanceLabel}>Pending Dues</Text>
-           </View>
-           <Text style={styles.balanceValue}>₹{user.pendingAmount || 0}</Text>
+          <View style={styles.balanceHeader}>
+            <View style={styles.balanceIconBg}>
+              <Wallet size={20} color="#DC2626" />
+            </View>
+            <Text style={styles.balanceLabel}>Pending Dues</Text>
+          </View>
+          <Text style={styles.balanceValue}>₹{user.pendingAmount || 0}</Text>
         </View>
 
         {/* --- 3. DEPOSIT HISTORY (UPDATED) --- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-             <Text style={[styles.sectionHeading, { color: theme.text }]}>Recent Deposits</Text>
-             {/* Header wala View All hata diya hai, ab niche dikhega */}
+            <Text style={[styles.sectionHeading, { color: theme.text }]}>Recent Deposits</Text>
+            {/* Header wala View All hata diya hai, ab niche dikhega */}
           </View>
 
           {loadingDeposits ? (
@@ -317,18 +317,18 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : (
             <View style={[styles.listContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              
+
               {/* List of Deposits */}
               {displayedDeposits.map((item, index) => (
                 <View key={item._id || index} style={[styles.listItem, index !== displayedDeposits.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
                   <View style={styles.listItemLeft}>
-                      <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5' }]}>
-                        <Text style={{fontSize: 12, color: '#10B981'}}>₹</Text>
-                      </View>
-                      <View>
-                        <Text style={[styles.listMainText, { color: theme.text }]}>Deposit</Text>
-                        <Text style={[styles.listSubText, { color: theme.textSecondary }]}>{formatDateDMY(item.createdAt)}</Text>
-                      </View>
+                    <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5' }]}>
+                      <Text style={{ fontSize: 12, color: '#10B981' }}>₹</Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.listMainText, { color: theme.text }]}>Deposit</Text>
+                      <Text style={[styles.listSubText, { color: theme.textSecondary }]}>{formatDateDMY(item.createdAt)}</Text>
+                    </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={[styles.amountText, { color: '#10B981' }]}>+ ₹{item.depositAmount}</Text>
@@ -339,14 +339,14 @@ export default function HomeScreen({ navigation }) {
 
               {/* View All Button inside the card at the bottom */}
               {deposits.length > 2 && (
-                <TouchableOpacity 
-                    onPress={toggleDepositView} 
-                    style={[styles.cardFooterBtn, { borderTopColor: theme.border, borderTopWidth: 1 }]}
+                <TouchableOpacity
+                  onPress={toggleDepositView}
+                  style={[styles.cardFooterBtn, { borderTopColor: theme.border, borderTopWidth: 1 }]}
                 >
                   <Text style={[styles.viewMoreText, { color: theme.primary }]}>
                     {showAllDeposits ? "Show Less" : `View All (${deposits.length - 2} more)`}
                   </Text>
-                  {showAllDeposits ? <ChevronUp size={16} color={theme.primary}/> : <ChevronDown size={16} color={theme.primary}/>}
+                  {showAllDeposits ? <ChevronUp size={16} color={theme.primary} /> : <ChevronDown size={16} color={theme.primary} />}
                 </TouchableOpacity>
               )}
 
@@ -357,17 +357,17 @@ export default function HomeScreen({ navigation }) {
         {/* --- 4. MY RECORDS --- */}
         <View style={styles.sectionContainer}>
           <Text style={[styles.sectionHeading, { color: theme.text }]}>Work Records</Text>
-          
+
           <View style={[styles.toggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <TouchableOpacity 
-              onPress={() => setFilterType("session")} 
+            <TouchableOpacity
+              onPress={() => setFilterType("session")}
               style={[styles.toggleBtn, filterType === "session" && { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.toggleText, { color: filterType === "session" ? "#fff" : theme.text }]}>Sessions</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={() => setFilterType("daily")} 
+
+            <TouchableOpacity
+              onPress={() => setFilterType("daily")}
               style={[styles.toggleBtn, filterType === "daily" && { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.toggleText, { color: filterType === "daily" ? "#fff" : theme.text }]}>Daily Entries</Text>
@@ -377,40 +377,40 @@ export default function HomeScreen({ navigation }) {
           {/* Table Data */}
           <View style={[styles.tableWrapper, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {loadingRecords ? (
-               <View style={{ padding: 40 }}>
-                 <ActivityIndicator size="small" color={theme.primary} />
-               </View>
+              <View style={{ padding: 40 }}>
+                <ActivityIndicator size="small" color={theme.primary} />
+              </View>
             ) : filterType === "session" ? (
               // SESSION DATA
               session.length === 0 ? (
                 <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No session records found.</Text>
               ) : (
                 session.map((item, index) => (
-                  <View key={item._id} style={index !== session.length -1 ? { borderBottomWidth: 1, borderBottomColor: theme.border } : {}}>
-                     <TouchableOpacity onPress={() => toggleRecords(item._id)} style={styles.recordRow}>
-                        <View style={{ flex: 1 }}>
-                           <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.startTime)}</Text>
-                           <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.totalDurationReadable}</Text>
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                           <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.totalCost}</Text>
-                           <Text style={{ fontSize: 10, color: theme.primary }}>{openRecords[item._id] ? "Hide Details" : "View Details"}</Text>
-                        </View>
-                     </TouchableOpacity>
-                     
-                     {openRecords[item._id] && (
-                       <View style={[styles.expandedDetails, { backgroundColor: isDarkMode ? '#1f2937' : '#F8FAFC' }]}>
-                          {item.records?.map(r => (
-                             <View key={r._id} style={styles.detailRow}>
-                                <Text style={{ fontSize: 12, color: theme.textSecondary, flex: 1 }}>
-                                   {/* DATE + TIME */}
-                                   <Text style={{fontWeight: '600'}}>{formatDateDMY(r.sessionDate)}</Text> • {format12Hour(r.startTime)} - {r.stopTime ? format12Hour(r.stopTime) : '...'}
-                                </Text>
-                                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>{r.durationReadable}</Text>
-                             </View>
-                          ))}
-                       </View>
-                     )}
+                  <View key={item._id} style={index !== session.length - 1 ? { borderBottomWidth: 1, borderBottomColor: theme.border } : {}}>
+                    <TouchableOpacity onPress={() => toggleRecords(item._id)} style={styles.recordRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.startTime)}</Text>
+                        <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.totalDurationReadable}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.totalCost}</Text>
+                        <Text style={{ fontSize: 10, color: theme.primary }}>{openRecords[item._id] ? "Hide Details" : "View Details"}</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {openRecords[item._id] && (
+                      <View style={[styles.expandedDetails, { backgroundColor: isDarkMode ? '#1f2937' : '#F8FAFC' }]}>
+                        {item.records?.map(r => (
+                          <View key={r._id} style={styles.detailRow}>
+                            <Text style={{ fontSize: 12, color: theme.textSecondary, flex: 1 }}>
+                              {/* DATE + TIME */}
+                              <Text style={{ fontWeight: '600' }}>{formatDateDMY(r.sessionDate)}</Text> • {format12Hour(r.startTime)} - {r.stopTime ? format12Hour(r.stopTime) : '...'}
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>{r.durationReadable}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 ))
               )
@@ -420,12 +420,12 @@ export default function HomeScreen({ navigation }) {
                 <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No daily entries found.</Text>
               ) : (
                 dailyData.map((item, index) => (
-                  <View key={item._id} style={[styles.recordRow, index !== dailyData.length -1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
-                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.date)}</Text>
-                        <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.dailyTotal} Tankers</Text>
-                     </View>
-                     <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.dailyAmount}</Text>
+                  <View key={item._id} style={[styles.recordRow, index !== dailyData.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.date)}</Text>
+                      <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.dailyTotal} Tankers</Text>
+                    </View>
+                    <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.dailyAmount}</Text>
                   </View>
                 ))
               )
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 50,
   },
-  
+
   // Profile Card
   profileCard: {
     padding: 20,
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  
+
   // List Styles
   listContainer: {
     borderRadius: 16,

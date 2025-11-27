@@ -1,22 +1,22 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  ActivityIndicator, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
   Alert,
   ScrollView,
-  KeyboardAvoidingView, 
+  KeyboardAvoidingView,
   Platform,
   StatusBar
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, UserCircle } from 'lucide-react-native';
-import { useTheme } from "../Context/ThemeContext"; // ✅ import context
+import { useTheme } from "../context/ThemeContext"; // ✅ import context
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import AdminLogin from "./AdminLogin";
+import AdminLoginScreen from "./AdminLoginScreen";
 
 function MyTabBar({ state, descriptors, navigation }) {
   const { colors } = useTheme();
@@ -75,12 +75,12 @@ function MyTabBar({ state, descriptors, navigation }) {
 }
 
 
-export default function LoginScreen({ navigation }) {
+export default function UserLoginScreen({ navigation }) {
   const { theme, isDarkMode } = useTheme(); // ✅ get theme values
 
   const [formData, setFormData] = useState({ phone: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); 
+  const [showPassword, setShowPassword] = useState(false);
   const [isphoneFocused, setIsPhoneFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
@@ -102,7 +102,7 @@ export default function LoginScreen({ navigation }) {
       const response = await fetch("https://saini-record-management.onrender.com/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone:phone, password: trimmedPassword }),
+        body: JSON.stringify({ phone: phone, password: trimmedPassword }),
       });
 
       const data = await response.json();
@@ -111,7 +111,7 @@ export default function LoginScreen({ navigation }) {
         Alert.alert("Success 🎉", "Login successful!");
         await AsyncStorage.setItem("userToken", data.token);
         await AsyncStorage.setItem("userId", data.id);
-        
+
         navigation.reset({
           index: 0,
           routes: [{ name: 'Dashboard' }],
@@ -136,12 +136,12 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]} // ✅ dynamic background
     >
-      <StatusBar 
-        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
         backgroundColor={theme.background}
-      /> 
-      
-      <ScrollView 
+      />
+
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
@@ -166,11 +166,11 @@ export default function LoginScreen({ navigation }) {
             keyboardType="phone-pad"
             autoCapitalize="none"
             style={[
-              styles.input, 
-              { 
-                backgroundColor: theme.card, 
-                color: theme.text, 
-                borderColor: isphoneFocused ? theme.primary : theme.border 
+              styles.input,
+              {
+                backgroundColor: theme.card,
+                color: theme.text,
+                borderColor: isphoneFocused ? theme.primary : theme.border
               }
             ]}
             onFocus={() => setIsPhoneFocused(true)}
@@ -182,12 +182,12 @@ export default function LoginScreen({ navigation }) {
         {/* Password */}
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Password</Text>
-          <View 
+          <View
             style={[
               styles.passwordInputContainer,
-              { 
-                backgroundColor: theme.card, 
-                borderColor: isPasswordFocused ? theme.primary : theme.border 
+              {
+                backgroundColor: theme.card,
+                borderColor: isPasswordFocused ? theme.primary : theme.border
               }
             ]}
           >
@@ -195,14 +195,14 @@ export default function LoginScreen({ navigation }) {
               placeholder="Enter your password"
               value={formData.password}
               onChangeText={(text) => handleChange("password", text)}
-              secureTextEntry={!showPassword} 
+              secureTextEntry={!showPassword}
               style={[styles.passwordInput, { color: theme.text }]}
               onFocus={() => setIsPasswordFocused(true)}
               onBlur={() => setIsPasswordFocused(false)}
               placeholderTextColor={theme.placeholder}
             />
-            <TouchableOpacity 
-              onPress={() => setShowPassword(!showPassword)} 
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
               style={styles.passwordVisibilityToggle}
             >
               {showPassword ? (
@@ -234,7 +234,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: {
-    flexGrow: 1, 
+    flexGrow: 1,
     padding: 24,
     justifyContent: "center",
     paddingBottom: 48,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: "600",
   },
-  input: { 
+  input: {
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 24, 
+    marginTop: 24,
     elevation: 8,
   },
   buttonText: {

@@ -11,16 +11,16 @@ import {
 } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useTheme } from "../Context/ThemeContext";
+import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from '@expo/vector-icons';
 
-export default function AdminDashboard() {
+export default function AdminUsersScreen() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
-  
+
   const navigation = useNavigation();
   const isFocused = useIsFocused(); // Hook to detect when screen is active
   const { theme, isDarkMode } = useTheme();
@@ -29,8 +29,8 @@ export default function AdminDashboard() {
   const getInitials = (name) => {
     if (!name) return "U";
     const parts = name.split(" ");
-    return parts.length > 1 
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() 
+    return parts.length > 1
+      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
       : name[0].toUpperCase();
   };
 
@@ -45,8 +45,8 @@ export default function AdminDashboard() {
   // --- Fetch Logic ---
   const fetchUsers = async () => {
     // Only show full loading spinner on first load, not on subsequent focus updates
-    if (users.length === 0) setLoading(true); 
-    
+    if (users.length === 0) setLoading(true);
+
     try {
       const token = await AsyncStorage.getItem("adminToken");
       if (!token) {
@@ -61,8 +61,8 @@ export default function AdminDashboard() {
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-             navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
-             return;
+          navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
+          return;
         }
         throw new Error("Server error");
       }
@@ -70,15 +70,15 @@ export default function AdminDashboard() {
       const data = await res.json();
       const userList = data.users || [];
       setUsers(userList);
-      
+
       // If search query exists, maintain the filter, else show all
       if (searchQuery) {
-          handleSearch(searchQuery, userList);
+        handleSearch(searchQuery, userList);
       } else {
-          setFilteredUsers(userList);
+        setFilteredUsers(userList);
       }
-      
-      setError(""); 
+
+      setError("");
     } catch (err) {
       setError("Failed to load users.");
     } finally {
@@ -126,8 +126,8 @@ export default function AdminDashboard() {
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Ionicons name="cloud-offline-outline" size={50} color={theme.error} />
         <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-        <TouchableOpacity onPress={fetchUsers} style={[styles.retryBtn, {backgroundColor: theme.primary}]}>
-            <Text style={{color: '#fff'}}>Retry</Text>
+        <TouchableOpacity onPress={fetchUsers} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
+          <Text style={{ color: '#fff' }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-      
+
       {/* 1. Header & Title */}
       <View style={styles.headerContainer}>
         <View>
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
           <Text style={[styles.headerSubtitle, { color: theme.subText }]}>Manage client records</Text>
         </View>
         <View style={[styles.headerIcon, { backgroundColor: theme.card }]}>
-              <Ionicons name="people" size={24} color={theme.primary} />
+          <Ionicons name="people" size={24} color={theme.primary} />
         </View>
       </View>
 
@@ -158,33 +158,33 @@ export default function AdminDashboard() {
           onChangeText={(text) => handleSearch(text)}
         />
         {searchQuery.length > 0 && (
-             <TouchableOpacity onPress={() => handleSearch("")}>
-                 <Ionicons name="close-circle" size={20} color={theme.subText} />
-             </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleSearch("")}>
+            <Ionicons name="close-circle" size={20} color={theme.subText} />
+          </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        // RefreshControl removed as per request
+      // RefreshControl removed as per request
       >
-        
+
         {/* 3. Quick Stats Row */}
         <View style={styles.statsRow}>
-            <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
-                <Text style={[styles.statLabel, {color: theme.subText}]}>Total Clients</Text>
-                <Text style={[styles.statValue, {color: theme.primary}]}>{totalUsers}</Text>
-            </View>
-            <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
-                <Text style={[styles.statLabel, {color: theme.subText}]}>Total Pending</Text>
-                <Text style={[styles.statValue, {color: '#FF9800'}]}>{formatCurrency(totalPending)}</Text>
-            </View>
+          <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+            <Text style={[styles.statLabel, { color: theme.subText }]}>Total Clients</Text>
+            <Text style={[styles.statValue, { color: theme.primary }]}>{totalUsers}</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: theme.card, shadowColor: theme.shadow }]}>
+            <Text style={[styles.statLabel, { color: theme.subText }]}>Total Pending</Text>
+            <Text style={[styles.statValue, { color: '#FF9800' }]}>{formatCurrency(totalPending)}</Text>
+          </View>
         </View>
 
         {/* 4. User List */}
-        <Text style={[styles.sectionTitle, {color: theme.subText}]}>Client List</Text>
-        
+        <Text style={[styles.sectionTitle, { color: theme.subText }]}>Client List</Text>
+
         {filteredUsers.length > 0 ? (
           filteredUsers.map((user) => (
             <TouchableOpacity
@@ -202,27 +202,27 @@ export default function AdminDashboard() {
             >
               {/* Left: Avatar */}
               <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '15' }]}>
-                 <Text style={[styles.avatarText, { color: theme.primary }]}>
-                   {getInitials(user.fullName)}
-                 </Text>
+                <Text style={[styles.avatarText, { color: theme.primary }]}>
+                  {getInitials(user.fullName)}
+                </Text>
               </View>
 
               {/* Middle: Info */}
               <View style={styles.cardInfo}>
                 <Text style={[styles.cardName, { color: theme.text }]}>{user.fullName}</Text>
                 <Text style={[styles.cardPhone, { color: theme.subText }]}>{user.phone}</Text>
-                
+
                 {/* Badges Row */}
                 <View style={styles.badgesRow}>
-                    {user.pendingAmount > 0 ? (
-                        <View style={[styles.badge, { backgroundColor: '#FFF3E0' }]}>
-                            <Text style={[styles.badgeText, { color: '#FF9800' }]}>Pending: {user.pendingAmount}</Text>
-                        </View>
-                    ) : (
-                         <View style={[styles.badge, { backgroundColor: '#E8F5E9' }]}>
-                            <Text style={[styles.badgeText, { color: '#4CAF50' }]}>Paid</Text>
-                        </View>
-                    )}
+                  {user.pendingAmount > 0 ? (
+                    <View style={[styles.badge, { backgroundColor: '#FFF3E0' }]}>
+                      <Text style={[styles.badgeText, { color: '#FF9800' }]}>Pending: {user.pendingAmount}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.badge, { backgroundColor: '#E8F5E9' }]}>
+                      <Text style={[styles.badgeText, { color: '#4CAF50' }]}>Paid</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  
+
   // Header
   headerContainer: {
     paddingTop: 10,
@@ -268,8 +268,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   headerIcon: {
-      padding: 10,
-      borderRadius: 12,
+    padding: 10,
+    borderRadius: 12,
   },
 
   // Search
@@ -295,37 +295,37 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   statsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 25,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 25,
   },
   statBox: {
-      width: '48%',
-      padding: 15,
-      borderRadius: 14,
-      elevation: 2,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
+    width: '48%',
+    padding: 15,
+    borderRadius: 14,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      marginBottom: 5,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 5,
   },
   statValue: {
-      fontSize: 18,
-      fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 
   // List
   sectionTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      marginBottom: 10,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   userCard: {
     flexDirection: "row",
@@ -341,19 +341,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   avatarContainer: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 15,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
   avatarText: {
-      fontSize: 18,
-      fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   cardInfo: {
-      flex: 1,
+    flex: 1,
   },
   cardName: {
     fontSize: 17,
@@ -361,20 +361,20 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cardPhone: {
-      fontSize: 13,
-      marginBottom: 6,
+    fontSize: 13,
+    marginBottom: 6,
   },
   badgesRow: {
-      flexDirection: 'row',
+    flexDirection: 'row',
   },
   badge: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   badgeText: {
-      fontSize: 11,
-      fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '700',
   },
 
   // States
@@ -387,13 +387,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   retryBtn: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   emptyContainer: {
-      marginTop: 50,
-      alignItems: 'center',
+    marginTop: 50,
+    alignItems: 'center',
   },
   emptyText: {
     marginTop: 10,
