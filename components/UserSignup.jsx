@@ -96,7 +96,7 @@ const handleLogin = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Create an Account</Text>
+      <Text style={styles.header}>Add User</Text>
 
       {/* This message text will appear if you set the 'message' state */}
       {message ? <Text style={styles.message}>{message}</Text> : null}

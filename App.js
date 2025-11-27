@@ -17,12 +17,9 @@ import Home from "./components/Home";
 import UserSignupScreen from "./components/UserSignup";
 import UserLoginScreen from "./components/Login";
 import AdminLoginScreen from "./components/AdminLogin";
-import UserDashboardScreen from "./components/UserDashboard";
-import AdminDashboardScreen from "./components/AdminDashboard";
 import UserDetailScreen from "./components/UserDetail";
-import NavigationTabs from "./components/NavigationTabs";
 import NavigationTabsAdmin from "./components/NavigationTabsAdmin";
-import UserProfileScreen from "./components/UserProfile";
+import UserHomeScreen from "./components/UserHomeScreen"
 
 const Stack = createNativeStackNavigator();
 
@@ -100,7 +97,7 @@ export default function App() {
           <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }}  />
           <Stack.Screen name="userLogin" component={UserLoginScreen}  />
           <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Dashboard" component={NavigationTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="Dashboard" component={UserHomeScreen} options={{ headerShown: false }} />
           
 
           <Stack.Screen name="adminDashboard" component={NavigationTabsAdmin} options={{ headerShown: false }} />

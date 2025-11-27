@@ -1,4 +1,4 @@
-// AdminHome.jsx (Actually UserDetail Logic)
+// AdminHome.jsx (UserDetail Logic)
 
 import React, { useEffect, useState } from "react";
 import {
@@ -12,6 +12,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,13 +55,13 @@ const formatDateDMY = (isoString) => {
 export default function UserDetail() {
   const route = useRoute();
   const navigation = useNavigation();
-  // Safe check for params
   const initialUser = route.params?.user || {};
 
   const [user, setUser] = useState(initialUser);
   const [session, setSession] = useState([]);
   const [records, setRecords] = useState([]);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [loading, setLoading] = useState(false); // Added loading state
   
   // Edit States
   const [editingRecordId, setEditingRecordId] = useState(null);
@@ -78,7 +79,7 @@ export default function UserDetail() {
 
   const [openSession, setOpenSession] = useState({});
   const [filterType, setFilterType] = useState("session");
-  const [dailyData, setDailyData] = useState([]);
+  const [dailyData, setDailyData] = useState({ days: [] }); // Initialized safely
   
   const [manualDate, setManualDate] = useState(new Date());
   const [manualTotal, setManualTotal] = useState("");
@@ -146,9 +147,7 @@ export default function UserDetail() {
     try {
       const token = await AsyncStorage.getItem("adminToken");
       const res = await fetch(`${BASE_URL}/admin/users/${user._id}`, {
-        headers: { 
-            "Authorization": `Bearer ${token}`
-        }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -157,11 +156,17 @@ export default function UserDetail() {
     } catch (err) { console.warn(err); }
   };
 
+  // --- UPDATED FETCH SESSION (Added Token) ---
   const fetchSession = async () => {
     if (!user?._id) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/session/${user._id}`);
+      const token = await AsyncStorage.getItem("adminToken"); // Token retrieve kiya
+      const res = await fetch(`${BASE_URL}/session/${user._id}`, {
+        headers: { "Authorization": `Bearer ${token}` } // Header add kiya
+      });
       const data = await res.json();
+      
       const sessionData = data.session || [];
       setSession(sessionData);
 
@@ -186,16 +191,30 @@ export default function UserDetail() {
       setRecords(allRecords);
       const running = allRecords.find((r) => !r.stopTime);
       setTimerRunning(!!running);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Session Fetch Error:", err); 
+    } finally {
+        setLoading(false);
+    }
   };
 
+  // --- UPDATED FETCH DAILY (Added Token) ---
   const fetchDailyData = async () => {
     if (!user?._id) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/dailyentry/${user._id}`);
+      const token = await AsyncStorage.getItem("adminToken"); // Token retrieve kiya
+      const res = await fetch(`${BASE_URL}/dailyentry/${user._id}`, {
+        headers: { "Authorization": `Bearer ${token}` } // Header add kiya
+      });
       const data = await res.json();
-      setDailyData(data.data);
-    } catch (err) { console.error(err); }
+      // Ensure we set a valid object structure
+      setDailyData(data.data || { days: [] });
+    } catch (err) { 
+        console.error("Daily Fetch Error:", err); 
+    } finally {
+        setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -209,12 +228,13 @@ export default function UserDetail() {
   const toggleSession = (sessionId) => setOpenSession((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   const toggleDaily = (dayId) => setOpenDaily((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
 
+  // ... (Baaki handlers same hain, unme headers already the) ...
   const handleAddSession = async () => { 
     try {
         const token = await AsyncStorage.getItem("adminToken");
         const res = await fetch(`${BASE_URL}/session/start/${user._id}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) { 
-            Alert.alert("Success", "Started!"); 
+            Alert.alert("Success", "Session Started!"); 
             fetchSession(); 
             await fetchUser();
         }
@@ -228,7 +248,7 @@ export default function UserDetail() {
     try {
       const res = await fetch(`${BASE_URL}/session/end/${runningSession._id}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { 
-          Alert.alert("Success", "Ended!"); 
+          Alert.alert("Success", "Session Ended!"); 
           fetchSession(); 
           await fetchUser();
       }
@@ -246,6 +266,7 @@ export default function UserDetail() {
         body: JSON.stringify({ startTime: new Date().toISOString() }),
       });
       if (res.ok) { 
+        Alert.alert("Success", "Timer Started!"); 
           fetchSession(); 
           await fetchUser(); 
       }
@@ -263,7 +284,9 @@ export default function UserDetail() {
         method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ stopTime: new Date().toISOString() }),
       });
-      if (res.ok) { fetchSession(); await fetchUser(); }
+      if (res.ok) {
+        Alert.alert("Success", "Timer Stoped!"); 
+        fetchSession(); await fetchUser(); }
     } catch (err) { console.error(err); }
    };
 
@@ -278,7 +301,9 @@ export default function UserDetail() {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ startTime: start.toISOString(), stopTime: stop.toISOString() }),
       });
-      if (res.ok) { fetchSession(); await fetchUser(); setNewStartTime(new Date()); setNewStopTime(new Date()); }
+      if (res.ok) { 
+        Alert.alert("Success", "Manually Session Added!"); 
+        fetchSession(); await fetchUser(); setNewStartTime(new Date()); setNewStopTime(new Date()); }
       else { const data = await res.json(); Alert.alert("Error", data.message); }
     } catch (err) { console.error(err); }
   };
@@ -301,7 +326,9 @@ export default function UserDetail() {
         method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      if (res.ok) { fetchSession(); await fetchUser(); handleCancelEdit(); }
+      if (res.ok) { 
+        Alert.alert("Success", "Updated!"); 
+        fetchSession(); await fetchUser(); handleCancelEdit(); }
     } catch (err) { console.error(err); }
   };
 
@@ -310,7 +337,9 @@ export default function UserDetail() {
     Alert.alert("Confirm", "Delete record?", [{ text: "Cancel" }, { text: "Delete", style: "destructive", onPress: async () => {
           try {
             const res = await fetch(`${BASE_URL}/session/deleteRecord/${record.sessionId}/${record._id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) { fetchSession(); await fetchUser(); }
+            if (res.ok) { 
+              Alert.alert("Success", "Deleted Session Entry!"); 
+              fetchSession(); await fetchUser(); }
           } catch (err) {}
     }}]);
   };
@@ -319,7 +348,7 @@ export default function UserDetail() {
     Alert.alert("Confirm", "Delete session?", [{ text: "Cancel" }, { text: "Delete", style: "destructive", onPress: async () => {
         try {
             const res = await fetch(`${BASE_URL}/session/deleteSession/${sessionId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) { Alert.alert("Success", "Deleted!"); fetchSession(); await fetchUser(); }
+            if (res.ok) { Alert.alert("Success", "Deleted Session!"); fetchSession(); await fetchUser(); }
         } catch (error) {}
     }}]);
    };
@@ -331,7 +360,7 @@ export default function UserDetail() {
           method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ userId }),
         });
-        if (response.ok) { Alert.alert("Success", "Added!"); fetchDailyData(); await fetchUser(); }
+        if (response.ok) { Alert.alert("Success", "Tanker Added!"); fetchDailyData(); await fetchUser(); }
       } catch (error) {}
    };
 
@@ -344,7 +373,7 @@ export default function UserDetail() {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ userId: user._id, date: formattedDate, value: parseFloat(manualTotal), amount: parseFloat(manualAmount) }),
       });
-      if (res.ok) { Alert.alert("Success", "Added!"); setManualDate(new Date()); setManualTotal(""); setManualAmount(""); fetchDailyData(); await fetchUser(); }
+      if (res.ok) { Alert.alert("Success", "Manually Tanker Added!"); setManualDate(new Date()); setManualTotal(""); setManualAmount(""); fetchDailyData(); await fetchUser(); }
     } catch (err) {}
   };
 
@@ -378,14 +407,14 @@ export default function UserDetail() {
     const token = await AsyncStorage.getItem("adminToken");
     Alert.alert("Confirm", "Delete entry?", [{text:"Cancel"}, {text:"Delete", style:"destructive", onPress: async()=>{
         try { const res = await fetch(`${BASE_URL}/dailyentry/deleteUserEntry/${user._id}/${entryId}`, {method:"DELETE", headers: { Authorization: `Bearer ${token}` }});
-        if(res.ok) {Alert.alert("Success","Deleted"); fetchDailyData(); await fetchUser();} } catch(e){}
+        if(res.ok) {Alert.alert("Success","Deleted Entry!"); fetchDailyData(); await fetchUser();} } catch(e){}
     }}]);
   };
   const handleDeleteDate =async (date) => { 
     const token = await AsyncStorage.getItem("adminToken");
     Alert.alert("Confirm", "Delete all entries for date?", [{text:"Cancel"}, {text:"Delete", style:"destructive", onPress: async()=>{
         try { const res = await fetch(`${BASE_URL}/dailyentry/delete/date/${user._id}/${date}`, {method:"DELETE", headers: { Authorization: `Bearer ${token}` }});
-        if(res.ok) {Alert.alert("Success","Deleted"); fetchDailyData(); await fetchUser();} } catch(e){}
+        if(res.ok) {Alert.alert("Success","Deleted Particular Date!"); fetchDailyData(); await fetchUser();} } catch(e){}
     }}]);
   };
 
@@ -397,7 +426,7 @@ export default function UserDetail() {
           method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ userId: user._id, depositAmount: parseFloat(depositAmount)||0, discountAmount: parseFloat(discountAmount)||0, message }),
         });
-        if (res.ok) { Alert.alert("Success", "Added!"); setDepositAmount(""); setDiscountAmount(""); setMessage(""); await fetchUser(); }
+        if (res.ok) { Alert.alert("Success", "Deposited!"); setDepositAmount(""); setDiscountAmount(""); setMessage(""); await fetchUser(); }
       } catch (error) {}
    };
 
@@ -513,8 +542,11 @@ export default function UserDetail() {
                 )}
             </View>
 
+            {/* === LOADING SPINNER === */}
+            {loading && <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />}
+
             {/* === DAILY ENTRY SECTION === */}
-            {filterType === "daily" && (
+            {!loading && filterType === "daily" && (
                 <>
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>📅 Daily Management</Text>
@@ -542,7 +574,8 @@ export default function UserDetail() {
                 </View>
 
                 <View style={styles.dataListContainer}>
-                    {!dailyData?.days || dailyData.days.length === 0 ? ( 
+                    {/* SAFE CHECK FOR DATA */}
+                    {(!dailyData.days || dailyData.days.length === 0) ? ( 
                         <Text style={styles.emptyText}>No daily entries found.</Text> 
                     ) : (
                     dailyData.days.map((day) => (
@@ -598,7 +631,7 @@ export default function UserDetail() {
             )}
 
             {/* === SESSION DATA SECTION === */}
-            {filterType === "session" && (
+            {!loading && filterType === "session" && (
                 <>
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>🕒 Session Controls</Text>
@@ -704,6 +737,7 @@ export default function UserDetail() {
                         )}
                     </View>
                     ))}
+                    {session.length === 0 && <Text style={styles.emptyText}>No sessions found.</Text>}
                 </View>
                 </>
             )}

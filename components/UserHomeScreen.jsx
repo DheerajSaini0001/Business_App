@@ -3,282 +3,658 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Alert, // Alert import rehne diya hai errors handle karne ke liye
   ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MotiView, MotiText } from "moti";
 import { useTheme } from "../Context/ThemeContext";
+import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet } from "lucide-react-native";
 
 const API_BASE_URL = "https://saini-record-management.onrender.com";
 
+// --- Helper Functions ---
+const formatDateDMY = (isoString) => {
+  if (!isoString) return "-";
+  const date = new Date(isoString);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const format12Hour = (isoString) => {
+  if (!isoString) return "-";
+  return new Date(isoString).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export default function HomeScreen({ navigation }) {
-  const { theme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
+
+  // --- State ---
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [greeting, setGreeting] = useState("");
-  const [tip, setTip] = useState("");
+  
+  // Deposit State
+  const [deposits, setDeposits] = useState([]);
+  const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const [showAllDeposits, setShowAllDeposits] = useState(false);
 
-  // ✅ Random motivational tips
-  const tips = [
-    "Back up your records regularly to stay secure!",
-    "Keep your data organized — your future self will thank you.",
-    "Security first! Avoid sharing your credentials.",
-    "Did you know? Our app encrypts every piece of your data.",
-    "Take a moment to review your stored info weekly.",
-  ];
+  // Records State (Session/Daily)
+  const [filterType, setFilterType] = useState("session");
+  const [session, setSession] = useState([]);
+  const [dailyData, setDailyData] = useState([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+  const [openRecords, setOpenRecords] = useState({}); 
 
-  // ✅ Time-based greeting
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good Morning");
-    else if (hour < 18) setGreeting("Good Afternoon");
-    else setGreeting("Good Evening");
-  }, []);
+  // --- Fetch User Data ---
+  const fetchUser = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const storedUserId = await AsyncStorage.getItem("userId");
 
-  // ✅ Random tip rotation
-  useEffect(() => {
-    setTip(tips[Math.floor(Math.random() * tips.length)]);
-  }, []);
-
-  // ✅ Fetch user info
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-        const res = await fetch(`${API_BASE_URL}/users/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data?.user) setUser(data.user);
-      } catch (err) {
-        console.error("User fetch error:", err);
-      } finally {
+      if (!token || !storedUserId) {
         setLoading(false);
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        return;
       }
-    };
+
+      const res = await fetch(`${API_BASE_URL}/users/${storedUserId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok && data) {
+        const userData = data.user || data;
+        setUser(userData);
+        fetchDepositHistory(userData._id);
+        if (filterType === 'session') fetchSession(userData._id);
+        else fetchDailyData(userData._id);
+      } else {
+        // Token expired logic
+        await AsyncStorage.clear();
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+      }
+    } catch (err) {
+      console.error("User fetch error:", err);
+      // Fail silently or show simple toast, but don't block
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDepositHistory = async (userId) => {
+    setLoadingDeposits(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/deposit/user/${userId}`);
+      const data = await res.json();
+      if (res.ok) setDeposits(data || []);
+    } catch (e) {
+      console.error("Deposit fetch error", e);
+    } finally {
+      setLoadingDeposits(false);
+    }
+  };
+
+  const fetchSession = async (userId) => {
+    setLoadingRecords(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const res = await fetch(`${API_BASE_URL}/session/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setSession(data.session || []);
+    } catch (err) {
+      console.error("Session fetch error:", err);
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
+
+  const fetchDailyData = async (userId) => {
+    setLoadingRecords(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const res = await fetch(`${API_BASE_URL}/dailyentry/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      
+      const dailyTotals = Array.isArray(data?.data?.days)
+        ? data.data.days.map((day) => ({
+            _id: day._id || day.date,
+            date: day.date,
+            dailyTotal: day.dailyTotal || 0,
+            dailyAmount: day.dailyAmount || 0,
+          }))
+        : [];
+
+      dailyTotals.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setDailyData(dailyTotals);
+    } catch (err) {
+      console.error("Daily fetch error:", err);
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
+
+  const toggleRecords = (sessionId) => {
+    setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
+  };
+
+  useEffect(() => {
+    if (user?._id) {
+      if (filterType === "session") fetchSession(user._id);
+      else fetchDailyData(user._id);
+    }
+  }, [filterType, user]);
+
+  useEffect(() => {
     fetchUser();
   }, []);
 
- 
-
+  // --- UPDATED LOGOUT LOGIC (Instant) ---
+  const handleLogout = async () => {
+    try {
+      // 1. Clear Data immediately
+      await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("userId");
+      
+      // 2. Reset Navigation to Login Screen immediately (Sidha Login)
+      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
+      
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={{ color: theme.text, marginTop: 10 }}>Loading...</Text>
+        <Text style={{ color: theme.text, marginTop: 10 }}>Loading Profile...</Text>
       </View>
     );
   }
 
+  if (!user) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <Text style={{ color: theme.text }}>User not found.</Text>
+      </View>
+    );
+  }
+
+  const displayedDeposits = showAllDeposits ? deposits : deposits.slice(0, 2);
+
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: theme.background },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Animated App Title */}
-      <MotiText
-        from={{ opacity: 0, translateY: -20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: "timing", duration: 800 }}
-        style={[styles.heading, { color: theme.text }]}
-      >
-        🏠 Saini Record Manager
-      </MotiText>
-
-    
-        <>
-          {/* Animated Greeting */}
-          <MotiText
-            from={{ opacity: 0, translateY: 10 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ delay: 400, duration: 800 }}
-            style={[styles.welcomeText, { color: theme.textSecondary }]}
-          >
-            {greeting}, <Text style={{ fontWeight: "bold" }}>{user.fullName}</Text> 👋
-          </MotiText>
-
-          {/* Tip of the Day */}
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 700, duration: 800 }}
-            style={[
-              styles.tipCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.tipTitle, { color: theme.text }]}>💡 Tip of the Day</Text>
-            <Text style={[styles.tipText, { color: theme.textSecondary }]}>{tip}</Text>
-          </MotiView>
-
-          {/* User Info */}
-          <MotiView
-            from={{ opacity: 0, translateX: -30 }}
-            animate={{ opacity: 1, translateX: 0 }}
-            transition={{ delay: 900, duration: 700 }}
-            style={[
-              styles.infoCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: theme.text }]}>
-              👤 Your Account Info
-            </Text>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              📧 Email: {user.email || "Not available"}
-            </Text>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              🗓️ Joined:{" "}
-              {user.createdAt
-                ? new Date(user.createdAt).toLocaleDateString()
-                : "N/A"}
-            </Text>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              🏷️ Role: {user.role || "User"}
-            </Text>
-          </MotiView>
-
-          {/* Status Section */}
-          <MotiView
-            from={{ opacity: 0, translateX: 30 }}
-            animate={{ opacity: 1, translateX: 0 }}
-            transition={{ delay: 1100, duration: 700 }}
-            style={[
-              styles.infoCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: theme.text }]}>
-              📈 Account Status
-            </Text>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              ✅ Active and secure
-            </Text>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              🔐 All records encrypted end-to-end
-            </Text>
-          
-          </MotiView>
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
+      {/* --- HEADER --- */}
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.appName, { color: theme.primary }]}>Saini Record Manager</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Dashboard Overview</Text>
+        </View>
 
-          {/* Footer */}
-          <Text style={[styles.footerText, { color: theme.textSecondary,justifyContent:'flex-end',alignItems:'flex-end',
-      color: theme.textSecondary,
-      position: "absolute",
-      bottom: 20,
-      left: 0,
-      right: 0,
-      textAlign: "center", }]}>
-            © {new Date().getFullYear()} Saini Record Manager{"\n"}Developed by Dheeraj Saini 💻
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            onPress={toggleTheme} 
+            style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          >
+            {isDarkMode ? 
+              <Sun size={20} color="#FDB813" /> : 
+              <Moon size={20} color="#6B7280" />
+            }
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleLogout} style={[styles.iconBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
+            <LogOut size={20} color="#DC2626" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        
+        {/* --- 1. USER GREETING & SUMMARY --- */}
+        <View style={[styles.card, styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.profileHeader}>
+            <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+              <Text style={styles.avatarText}>
+                {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
+              </Text>
+            </View>
+            <View>
+                <Text style={[styles.welcomeText, { color: theme.textSecondary }]}>Welcome back,</Text>
+                <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.divider} />
+          
+          <View style={styles.metaInfoRow}>
+             <View style={styles.metaItem}>
+                <Phone size={14} color={theme.textSecondary} />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.phone || "N/A"}</Text>
+             </View>
+             <View style={styles.metaItem}>
+                <Calendar size={14} color={theme.textSecondary} />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.createdAt ? formatDateDMY(user.createdAt) : "-"}</Text>
+             </View>
+          </View>
+        </View>
+
+        {/* --- 2. PENDING AMOUNT --- */}
+        <View style={[styles.balanceCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+           <View style={styles.balanceHeader}>
+             <View style={styles.balanceIconBg}>
+                <Wallet size={20} color="#DC2626" />
+             </View>
+             <Text style={styles.balanceLabel}>Pending Dues</Text>
+           </View>
+           <Text style={styles.balanceValue}>₹{user.pendingAmount || 0}</Text>
+        </View>
+
+        {/* --- 3. DEPOSIT HISTORY --- */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+             <Text style={[styles.sectionHeading, { color: theme.text }]}>Recent Deposits</Text>
+             {deposits.length > 2 && (
+               <TouchableOpacity onPress={() => setShowAllDeposits(!showAllDeposits)} style={styles.viewMoreBtn}>
+                 <Text style={[styles.viewMoreText, { color: theme.primary }]}>
+                   {showAllDeposits ? "Show Less" : "View All"}
+                 </Text>
+                 {showAllDeposits ? <ChevronUp size={14} color={theme.primary}/> : <ChevronDown size={14} color={theme.primary}/>}
+               </TouchableOpacity>
+             )}
+          </View>
+
+          {loadingDeposits ? (
+            <ActivityIndicator size="small" color={theme.primary} />
+          ) : deposits.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: theme.card }]}>
+              <Text style={{ color: theme.textSecondary }}>No deposits yet.</Text>
+            </View>
+          ) : (
+            <View style={[styles.listContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              {displayedDeposits.map((item, index) => (
+                <View key={item._id || index} style={[styles.listItem, index !== displayedDeposits.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+                  <View style={styles.listItemLeft}>
+                      <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5' }]}>
+                        <Text style={{fontSize: 12, color: '#10B981'}}>₹</Text>
+                      </View>
+                      <View>
+                        <Text style={[styles.listMainText, { color: theme.text }]}>Deposit</Text>
+                        <Text style={[styles.listSubText, { color: theme.textSecondary }]}>{formatDateDMY(item.createdAt)}</Text>
+                      </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[styles.amountText, { color: '#10B981' }]}>+ ₹{item.depositAmount}</Text>
+                    {item.discountAmount > 0 && <Text style={{ fontSize: 10, color: '#F59E0B' }}>Disc: ₹{item.discountAmount}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* --- 4. MY RECORDS --- */}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionHeading, { color: theme.text }]}>Work Records</Text>
+          
+          <View style={[styles.toggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <TouchableOpacity 
+              onPress={() => setFilterType("session")} 
+              style={[styles.toggleBtn, filterType === "session" && { backgroundColor: theme.primary }]}
+            >
+              <Text style={[styles.toggleText, { color: filterType === "session" ? "#fff" : theme.text }]}>Sessions</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => setFilterType("daily")} 
+              style={[styles.toggleBtn, filterType === "daily" && { backgroundColor: theme.primary }]}
+            >
+              <Text style={[styles.toggleText, { color: filterType === "daily" ? "#fff" : theme.text }]}>Daily Entries</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Table Data */}
+          <View style={[styles.tableWrapper, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {loadingRecords ? (
+               <View style={{ padding: 40 }}>
+                 <ActivityIndicator size="small" color={theme.primary} />
+               </View>
+            ) : filterType === "session" ? (
+              // SESSION DATA
+              session.length === 0 ? (
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No session records found.</Text>
+              ) : (
+                session.map((item, index) => (
+                  <View key={item._id} style={index !== session.length -1 ? { borderBottomWidth: 1, borderBottomColor: theme.border } : {}}>
+                     <TouchableOpacity onPress={() => toggleRecords(item._id)} style={styles.recordRow}>
+                        <View style={{ flex: 1 }}>
+                           <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.startTime)}</Text>
+                           <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.totalDurationReadable}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                           <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.totalCost}</Text>
+                           <Text style={{ fontSize: 10, color: theme.primary }}>{openRecords[item._id] ? "Hide Details" : "View Details"}</Text>
+                        </View>
+                     </TouchableOpacity>
+                     
+                     {openRecords[item._id] && (
+                       <View style={[styles.expandedDetails, { backgroundColor: isDarkMode ? '#1f2937' : '#F8FAFC' }]}>
+                          {item.records?.map(r => (
+                             <View key={r._id} style={styles.detailRow}>
+                                <Text style={{ fontSize: 12, color: theme.textSecondary, flex: 1 }}>
+                                   {/* DATE + TIME */}
+                                   <Text style={{fontWeight: '600'}}>{formatDateDMY(r.sessionDate)}</Text> • {format12Hour(r.startTime)} - {r.stopTime ? format12Hour(r.stopTime) : '...'}
+                                </Text>
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>{r.durationReadable}</Text>
+                             </View>
+                          ))}
+                       </View>
+                     )}
+                  </View>
+                ))
+              )
+            ) : (
+              // DAILY DATA
+              dailyData.length === 0 ? (
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No daily entries found.</Text>
+              ) : (
+                dailyData.map((item, index) => (
+                  <View key={item._id} style={[styles.recordRow, index !== dailyData.length -1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
+                     <View style={{ flex: 1 }}>
+                        <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.date)}</Text>
+                        <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.dailyTotal} Tankers</Text>
+                     </View>
+                     <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.dailyAmount}</Text>
+                  </View>
+                ))
+              )
+            )}
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+            © {new Date().getFullYear()} Saini Record Manager
           </Text>
-        </>
-       
-    </ScrollView>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
+  center: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  scrollContainer: {
+    padding: 20,
     paddingBottom: 50,
   },
-  heading: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginVertical: 20,
-    textAlign: "center",
+  
+  // Profile Card
+  profileCard: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 55,
+    height: 55,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   welcomeText: {
-    fontSize: 18,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    opacity: 0.3,
+    marginVertical: 15,
+  },
+  metaInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Hero Balance Card
+  balanceCard: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 25,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  balanceIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FECACA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  balanceValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+
+  // Sections
+  sectionContainer: {
+    marginBottom: 25,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    textAlign: "center",
   },
-  subText: {
-    fontSize: 16,
-    marginVertical: 20,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  infoCard: {
-    width: "95%",
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  cardTitle: {
+  sectionHeading: {
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
+    fontWeight: '700',
   },
-  infoText: {
-    fontSize: 15,
-    lineHeight: 22,
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  tipCard: {
-    width: "95%",
-    borderRadius: 14,
+  viewMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // List Styles
+  listContainer: {
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 14,
-    marginVertical: 10,
-    elevation: 3,
+    overflow: 'hidden',
   },
-  tipTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 5,
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
   },
-  tipText: {
+  listItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listMainText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  listSubText: {
+    fontSize: 12,
+  },
+  amountText: {
     fontSize: 15,
-    lineHeight: 20,
+    fontWeight: '700',
   },
-  loginButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    alignItems: "center",
-    marginVertical: 10,
+  emptyCard: {
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  loginText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "600",
+
+  // Toggle & Records
+  toggleContainer: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 4,
+    marginBottom: 15,
   },
-  logoutButton: {
-    width: "80%",
-    paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: "center",
-    marginTop: 30,
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
   },
-  logoutText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "600",
+  toggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tableWrapper: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  recordRow: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recordDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  recordSub: {
+    fontSize: 12,
+  },
+  recordAmount: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  expandedDetails: {
+    padding: 16,
+    paddingTop: 0,
+    gap: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  emptyText: {
+    padding: 30,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontSize: 13,
+  },
+
+  footer: {
+    alignItems: 'center',
+    marginTop: 10,
   },
   footerText: {
-    textAlign: "center",
-    fontSize: 14,
-    marginTop: 40,
-    opacity: 0.7,
+    fontSize: 12,
+    opacity: 0.6,
   },
 });
