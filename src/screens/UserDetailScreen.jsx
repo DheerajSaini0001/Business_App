@@ -502,12 +502,12 @@ export default function UserDetail() {
                   <Text style={[styles.tabText, filterType === "session" && styles.activeTabText]}>Session</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setFilterType("daily")} style={[styles.tabButton, filterType === "daily" && styles.activeTab]}>
-                  <Text style={[styles.tabText, filterType === "daily" && styles.activeTabText]}>Daily Entry</Text>
+                  <Text style={[styles.tabText, filterType === "daily" && styles.activeTabText]}>Tanker</Text>
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity onPress={() => setShowDepositForm(!showDepositForm)} style={styles.actionButtonSecondary}>
-                <Text style={styles.actionButtonSecondaryText}>{showDepositForm ? "Close Deposit Form" : "Manage Deposit"}</Text>
+                <Text style={styles.actionButtonSecondaryText}>{showDepositForm ? "Close Deposit Form" : "Deposit Money"}</Text>
               </TouchableOpacity>
 
               {showDepositForm && (
@@ -554,7 +554,7 @@ export default function UserDetail() {
             {!loading && filterType === "daily" && (
                 <>
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>📅 Daily Management</Text>
+                    <Text style={styles.cardTitle}>📅 Tanker Management</Text>
                     <View style={styles.actionRow}>
                         <TouchableOpacity onPress={() => handleAddData(user._id)} style={[styles.quickActionButton, {backgroundColor: COLORS.success}]}>
                             <Text style={styles.quickActionText}>+ Today's Tanker</Text>
