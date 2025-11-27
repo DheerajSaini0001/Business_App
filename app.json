@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Saini Record",
-    "slug": "SainiRecord",
+    "slug": "FirstApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,6 +30,7 @@
       "eas": {
         "projectId": "26de77c9-9f3d-4905-8f17-c70ffdb78f7c"
       }
-    }
+    },
+    "owner": "dheerajsaini0001"
   }
 }
