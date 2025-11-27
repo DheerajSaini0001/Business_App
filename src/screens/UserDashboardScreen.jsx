@@ -363,14 +363,14 @@ export default function HomeScreen({ navigation }) {
               onPress={() => setFilterType("session")}
               style={[styles.toggleBtn, filterType === "session" && { backgroundColor: theme.primary }]}
             >
-              <Text style={[styles.toggleText, { color: filterType === "session" ? "#fff" : theme.text }]}>Sessions</Text>
+              <Text style={[styles.toggleText, { color: filterType === "session" ? "#fff" : theme.text }]}>Session</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setFilterType("daily")}
               style={[styles.toggleBtn, filterType === "daily" && { backgroundColor: theme.primary }]}
             >
-              <Text style={[styles.toggleText, { color: filterType === "daily" ? "#fff" : theme.text }]}>Daily Entries</Text>
+              <Text style={[styles.toggleText, { color: filterType === "daily" ? "#fff" : theme.text }]}>Tanker</Text>
             </TouchableOpacity>
           </View>
 
