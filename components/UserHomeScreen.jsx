@@ -4,17 +4,25 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert, // Alert import rehne diya hai errors handle karne ke liye
+  Alert, // Alert import zaroori hai notification ke liye
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  LayoutAnimation, // Smooth animation ke liye (Optional but good)
+  Platform,
+  UIManager
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../Context/ThemeContext";
 import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet } from "lucide-react-native";
 
 const API_BASE_URL = "https://saini-record-management.onrender.com";
+
+// Android par LayoutAnimation enable karne ke liye
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // --- Helper Functions ---
 const formatDateDMY = (isoString) => {
@@ -45,7 +53,7 @@ export default function HomeScreen({ navigation }) {
   // Deposit State
   const [deposits, setDeposits] = useState([]);
   const [loadingDeposits, setLoadingDeposits] = useState(false);
-  const [showAllDeposits, setShowAllDeposits] = useState(false);
+  const [showAllDeposits, setShowAllDeposits] = useState(false); // Ye toggle karega
 
   // Records State (Session/Daily)
   const [filterType, setFilterType] = useState("session");
@@ -81,22 +89,25 @@ export default function HomeScreen({ navigation }) {
         if (filterType === 'session') fetchSession(userData._id);
         else fetchDailyData(userData._id);
       } else {
-        // Token expired logic
         await AsyncStorage.clear();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
       }
     } catch (err) {
       console.error("User fetch error:", err);
-      // Fail silently or show simple toast, but don't block
     } finally {
       setLoading(false);
     }
   };
 
   const fetchDepositHistory = async (userId) => {
+    const token = await AsyncStorage.getItem("userToken");
     setLoadingDeposits(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/deposit/user/${userId}`);
+      const res = await fetch(`${API_BASE_URL}/deposit/user/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const data = await res.json();
       if (res.ok) setDeposits(data || []);
     } catch (e) {
@@ -150,7 +161,14 @@ export default function HomeScreen({ navigation }) {
   };
 
   const toggleRecords = (sessionId) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // Animation
     setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
+  };
+
+  // --- Toggle Deposit View ---
+  const toggleDepositView = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // Smooth expand animation
+    setShowAllDeposits(!showAllDeposits);
   };
 
   useEffect(() => {
@@ -164,16 +182,31 @@ export default function HomeScreen({ navigation }) {
     fetchUser();
   }, []);
 
-  // --- UPDATED LOGOUT LOGIC (Instant) ---
-  const handleLogout = async () => {
+  // --- LOGOUT CONFIRMATION LOGIC ---
+  const handleLogoutPress = () => {
+    Alert.alert(
+      "Confirm Logout", // Title
+      "Are you sure you want to log out?", // Message
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Logout Cancelled"),
+          style: "cancel"
+        },
+        { 
+          text: "Yes, Logout", 
+          onPress: performLogout,
+          style: "destructive" // iOS pe red color dega
+        }
+      ]
+    );
+  };
+
+  const performLogout = async () => {
     try {
-      // 1. Clear Data immediately
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("userId");
-      
-      // 2. Reset Navigation to Login Screen immediately (Sidha Login)
       navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
-      
     } catch (error) {
       console.error("Logout Error:", error);
     }
@@ -196,6 +229,7 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  // Logic: Agar showAllDeposits false hai to sirf first 2 dikhao, varna sab
   const displayedDeposits = showAllDeposits ? deposits : deposits.slice(0, 2);
 
   return (
@@ -220,7 +254,8 @@ export default function HomeScreen({ navigation }) {
             }
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleLogout} style={[styles.iconBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
+          {/* Logout Button pe ab handleLogoutPress function hai */}
+          <TouchableOpacity onPress={handleLogoutPress} style={[styles.iconBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
             <LogOut size={20} color="#DC2626" />
           </TouchableOpacity>
         </View>
@@ -267,18 +302,11 @@ export default function HomeScreen({ navigation }) {
            <Text style={styles.balanceValue}>₹{user.pendingAmount || 0}</Text>
         </View>
 
-        {/* --- 3. DEPOSIT HISTORY --- */}
+        {/* --- 3. DEPOSIT HISTORY (UPDATED) --- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
              <Text style={[styles.sectionHeading, { color: theme.text }]}>Recent Deposits</Text>
-             {deposits.length > 2 && (
-               <TouchableOpacity onPress={() => setShowAllDeposits(!showAllDeposits)} style={styles.viewMoreBtn}>
-                 <Text style={[styles.viewMoreText, { color: theme.primary }]}>
-                   {showAllDeposits ? "Show Less" : "View All"}
-                 </Text>
-                 {showAllDeposits ? <ChevronUp size={14} color={theme.primary}/> : <ChevronDown size={14} color={theme.primary}/>}
-               </TouchableOpacity>
-             )}
+             {/* Header wala View All hata diya hai, ab niche dikhega */}
           </View>
 
           {loadingDeposits ? (
@@ -289,6 +317,8 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : (
             <View style={[styles.listContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              
+              {/* List of Deposits */}
               {displayedDeposits.map((item, index) => (
                 <View key={item._id || index} style={[styles.listItem, index !== displayedDeposits.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
                   <View style={styles.listItemLeft}>
@@ -306,6 +336,20 @@ export default function HomeScreen({ navigation }) {
                   </View>
                 </View>
               ))}
+
+              {/* View All Button inside the card at the bottom */}
+              {deposits.length > 2 && (
+                <TouchableOpacity 
+                    onPress={toggleDepositView} 
+                    style={[styles.cardFooterBtn, { borderTopColor: theme.border, borderTopWidth: 1 }]}
+                >
+                  <Text style={[styles.viewMoreText, { color: theme.primary }]}>
+                    {showAllDeposits ? "Show Less" : `View All (${deposits.length - 2} more)`}
+                  </Text>
+                  {showAllDeposits ? <ChevronUp size={16} color={theme.primary}/> : <ChevronDown size={16} color={theme.primary}/>}
+                </TouchableOpacity>
+              )}
+
             </View>
           )}
         </View>
@@ -541,15 +585,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  viewMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewMoreText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   
   // List Styles
   listContainer: {
@@ -590,6 +625,19 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
+  },
+
+  // View All Button (Footer style)
+  cardFooterBtn: {
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  viewMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Toggle & Records
