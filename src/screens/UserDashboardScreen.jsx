@@ -239,7 +239,7 @@ export default function HomeScreen({ navigation }) {
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.appName, { color: theme.primary }]}>Saini Record Manager</Text>
+          <Text style={[styles.appName, { color: theme.primary }]}>Saini Record Management</Text>
           <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Dashboard Overview</Text>
         </View>
 

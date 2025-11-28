@@ -15,7 +15,7 @@ const Navbar = ({ navigation }) => {
   return (
     <View style={styles.navbar}>
       {/* 🏷️ App Name */}
-      <Text style={styles.title}>Saini's Record Management</Text>
+      <Text style={styles.title}>Saini Record Management</Text>
 
 
 
