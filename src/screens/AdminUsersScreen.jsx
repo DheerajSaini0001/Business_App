@@ -28,10 +28,10 @@ export default function AdminUsersScreen() {
   // --- Helpers ---
   const getInitials = (name) => {
     if (!name) return "U";
-    const parts = name.split(" ");
-    return parts.length > 1
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-      : name[0].toUpperCase();
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 0) return "U";
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
   };
 
   const formatCurrency = (amount) => {
@@ -201,8 +201,8 @@ export default function AdminUsersScreen() {
               activeOpacity={0.7}
             >
               {/* Left: Avatar */}
-              <View style={[styles.avatarContainer, { backgroundColor: theme.primary + '15' }]}>
-                <Text style={[styles.avatarText, { color: theme.primary }]}>
+              <View style={[styles.avatarContainer, { backgroundColor: theme.primary }]}>
+                <Text style={[styles.avatarText, { color: '#fff' }]}>
                   {getInitials(user.fullName)}
                 </Text>
               </View>

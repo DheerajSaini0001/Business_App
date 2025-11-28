@@ -2,7 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   StatusBar,
   View,
-  StyleSheet
+  StyleSheet,
+  Image,
+  Text,
+  Dimensions
 } from "react-native";
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -28,6 +31,7 @@ import VerifyOtpScreen from "./src/screens/VerifyOtpScreen";
 import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 
 const Stack = createNativeStackNavigator();
+const { width, height } = Dimensions.get('window');
 
 // --- FIX: Saara logic is function ke andar hona chahiye ---
 export default function App() {
@@ -35,12 +39,17 @@ export default function App() {
   // --- FIX: 'isLoading' state ko yahan define karein ---
   const [isLoading, setIsLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState('homeScreen');
+  const [isSplashReady, setIsSplashReady] = useState(false);
 
   // --- Login Check useEffect ---
   // Yeh app ke khulte hi sirf ek baar chalega
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
+        // Hide native splash screen immediately so we can show our custom one
+        await SplashScreen.hideAsync();
+        setIsSplashReady(true);
+
         // 1. Pehle Admin Token check karein
         const adminToken = await AsyncStorage.getItem('adminToken');
 
@@ -58,33 +67,38 @@ export default function App() {
           // Agar dono nahi mile, toh initialRoute 'homeScreen' hi rahega
         }
 
+        // Simulate a minimum splash time if needed (optional)
+        // await new Promise(resolve => setTimeout(resolve, 2000));
+
       } catch (e) {
         console.error("Failed to fetch token from storage", e);
+      } finally {
+        // Checking poori ho gayi, ab loading screen hata dein
+        setIsLoading(false);
       }
-
-      // Checking poori ho gayi, ab loading screen hata dein
-      setIsLoading(false);
     };
 
     checkLoginStatus();
   }, []); // [] ka matlab hai 'run only once'
 
-  // --- Loading Screen ---
-  const onLayoutRootView = useCallback(async () => {
-    if (!isLoading) {
-      await SplashScreen.hideAsync();
-    }
-  }, [isLoading]);
-
-  // --- Loading Screen ---
+  // --- Loading Screen (Custom Splash) ---
   if (isLoading) {
-    return null;
+    return (
+      <View style={styles.splashContainer}>
+        <StatusBar hidden={true} />
+        <Image
+          source={require('./assets/splash-icon.png')}
+          style={styles.splashImage}
+          resizeMode="contain"
+        />
+      </View>
+    );
   }
 
   // --- Main App Navigator ---
   return (
     <ThemeProvider>
-      <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
         <StatusBar
           barStyle="dark-content"
           backgroundColor="transparent"
@@ -122,12 +136,20 @@ export default function App() {
 
       </View>
     </ThemeProvider>
-
   );
-} // --- FIX: Function yahan band hoga ---
+}
 
-// --- Loading Style ---
 const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  splashImage: {
+    width: '80%',
+    height: '80%',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
