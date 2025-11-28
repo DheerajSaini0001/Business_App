@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StatusBar,
   View,
-  ActivityIndicator,
   StyleSheet
 } from "react-native";
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +22,10 @@ import AdminLoginScreen from "./src/screens/AdminLoginScreen";
 import UserDetailScreen from "./src/screens/UserDetailScreen";
 import AdminTabNavigator from "./src/navigation/AdminTabNavigator";
 import UserDashboardScreen from "./src/screens/UserDashboardScreen"
+import CreateAdminScreen from "./src/screens/CreateAdminScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
+import VerifyOtpScreen from "./src/screens/VerifyOtpScreen";
+import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -64,18 +70,21 @@ export default function App() {
   }, []); // [] ka matlab hai 'run only once'
 
   // --- Loading Screen ---
+  const onLayoutRootView = useCallback(async () => {
+    if (!isLoading) {
+      await SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
+  // --- Loading Screen ---
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
+    return null;
   }
 
   // --- Main App Navigator ---
   return (
     <ThemeProvider>
-      <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
+      <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }} onLayout={onLayoutRootView}>
         <StatusBar
           barStyle="dark-content"
           backgroundColor="transparent"
@@ -101,8 +110,11 @@ export default function App() {
 
 
             <Stack.Screen name="adminDashboard" component={AdminTabNavigator} options={{ headerShown: false }} />
-            {/* <Stack.Screen name="adminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} /> */}
+            <Stack.Screen name="createAdmin" component={CreateAdminScreen} options={{ headerShown: false }} />
             <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="verifyOtp" component={VerifyOtpScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="resetPassword" component={ResetPasswordScreen} options={{ headerShown: false }} />
 
           </Stack.Navigator>
 

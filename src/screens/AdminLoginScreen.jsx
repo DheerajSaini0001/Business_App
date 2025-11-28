@@ -35,12 +35,21 @@ export default function AdminLogin({ navigation }) {
           body: JSON.stringify({ email, password }),
         }
       );
-
       const data = await response.json();
 
       if (response.ok) {
         Alert.alert("Success 🎉", "Login successful!");
         await AsyncStorage.setItem("adminToken", data.token);
+
+        // Save Admin ID if available
+        if (data.admin && data.admin._id) {
+          await AsyncStorage.setItem("adminId", data.admin._id);
+        }
+
+        // Save Admin Role if available
+        if (data.admin && data.admin.role) {
+          await AsyncStorage.setItem("adminRole", data.admin.role);
+        }
 
         navigation.reset({
           index: 0,
@@ -121,6 +130,15 @@ export default function AdminLogin({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("forgotPassword")}
+        style={{ alignSelf: "flex-end", marginBottom: 20 }}
+      >
+        <Text style={{ color: theme.primary, fontWeight: "600" }}>
+          Forgot Password?
+        </Text>
+      </TouchableOpacity>
 
       {/* Login Button */}
       <TouchableOpacity

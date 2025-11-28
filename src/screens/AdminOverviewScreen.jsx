@@ -58,6 +58,7 @@ export default function AdminOverviewScreen() {
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [adminRole, setAdminRole] = useState(null);
 
   // --- Toggle States for View All ---
   const [expandTankers, setExpandTankers] = useState(false);
@@ -114,6 +115,8 @@ export default function AdminOverviewScreen() {
     if (!refreshing) setLoading(true);
     try {
       const token = await AsyncStorage.getItem("adminToken");
+      const role = await AsyncStorage.getItem("adminRole");
+      setAdminRole(role);
       const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Fetch Deposits
@@ -249,6 +252,18 @@ export default function AdminOverviewScreen() {
             <Text style={[styles.dateText, { color: theme.primary }]}>{formatDate(new Date())}</Text>
           </View>
         </View>
+
+        {/* === SUPER ADMIN ACTION === */}
+        {adminRole === 'superadmin' && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 15 }}>
+            <TouchableOpacity
+              style={[styles.createAdminBtn, { backgroundColor: theme.primary }]}
+              onPress={() => navigation.navigate("createAdmin")}
+            >
+              <Text style={styles.createAdminText}>+ Create New Admin</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <ScrollView
           contentContainerStyle={styles.contentArea}
@@ -492,4 +507,22 @@ const styles = StyleSheet.create({
   transName: { fontSize: 14, fontWeight: '700' },
   transDate: { fontSize: 11, marginTop: 1 },
   transAmount: { fontSize: 15, fontWeight: 'bold' },
+
+  // Create Admin Button
+  createAdminBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createAdminText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });

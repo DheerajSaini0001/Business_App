@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { User, Phone, Lock, CheckCircle } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -69,12 +70,26 @@ export default function UserSignup({ navigation }) {
     setMessage("");
 
     try {
+      const adminId = await AsyncStorage.getItem("adminId");
+      const adminToken = await AsyncStorage.getItem("adminToken");
+
+      if (!adminId) {
+        Alert.alert("Error", "Admin ID not found. Please login again.");
+        setLoading(false);
+        return;
+      }
+
+      const payload = { ...formData, adminId };
+
       const response = await fetch(
         "https://saini-record-management.onrender.com/users/UserSignup",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          headers: {
+            "Content-Type": "application/json",
+            ...(adminToken ? { "Authorization": `Bearer ${adminToken}` } : {})
+          },
+          body: JSON.stringify(payload),
         }
       );
 
@@ -204,7 +219,7 @@ export default function UserSignup({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </LinearGradient >
   );
 }
 
