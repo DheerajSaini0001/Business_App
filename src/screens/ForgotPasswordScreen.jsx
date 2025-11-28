@@ -40,8 +40,8 @@ export default function ForgotPasswordScreen({ navigation }) {
             if (response.status === 404) {
                 Alert.alert("Error", "Account not found or not authorized.");
             } else if (response.ok) {
-                Alert.alert("Success", `OTP sent! Your OTP is: ${data.otp}`);
-                navigation.navigate("verifyOtp", { phone: phone.trim(), receivedOtp: data.otp });
+                Alert.alert("Success", "OTP sent successfully!");
+                navigation.navigate("resetPassword", { identifier: phone.trim() });
             } else {
                 Alert.alert("Error", data.message || "Failed to send OTP");
             }

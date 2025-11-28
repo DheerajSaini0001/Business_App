@@ -15,19 +15,15 @@ import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ResetPasswordScreen({ route, navigation }) {
-    const { phone, otp } = route.params;
+    const { identifier } = route.params;
     const { theme } = useTheme();
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [otp, setOtp] = useState("");
+    const [newPassword, setNewPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleReset = async () => {
-        if (!password || !confirmPassword) {
-            Alert.alert("Error", "Please fill all fields");
-            return;
-        }
-        if (password !== confirmPassword) {
-            Alert.alert("Error", "Passwords do not match");
+        if (!otp || !newPassword) {
+            Alert.alert("Error", "All fields are required");
             return;
         }
 
@@ -36,12 +32,12 @@ export default function ResetPasswordScreen({ route, navigation }) {
             const response = await fetch("https://saini-record-management.onrender.com/auth/reset-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier: phone, otp, newPassword: password })
+                body: JSON.stringify({ identifier, otp, newPassword })
             });
             const data = await response.json();
 
             if (response.ok) {
-                Alert.alert("Success", "Password reset successfully!");
+                Alert.alert("Success", "Password reset successfully 🎉");
                 navigation.reset({
                     index: 0,
                     routes: [{ name: "adminLogin" }],
@@ -67,6 +63,20 @@ export default function ResetPasswordScreen({ route, navigation }) {
                     <Text style={[styles.title, { color: theme.text }]}>Reset Password</Text>
                 </View>
                 <View style={[styles.formCard, { backgroundColor: theme.card }]}>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={[styles.label, { color: theme.text }]}>OTP</Text>
+                        <TextInput
+                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                            placeholder="Enter 4-digit OTP"
+                            placeholderTextColor={theme.subText}
+                            keyboardType="number-pad"
+                            value={otp}
+                            onChangeText={setOtp}
+                            maxLength={4}
+                        />
+                    </View>
+
                     <View style={styles.inputGroup}>
                         <Text style={[styles.label, { color: theme.text }]}>New Password</Text>
                         <TextInput
@@ -74,21 +84,11 @@ export default function ResetPasswordScreen({ route, navigation }) {
                             placeholder="Enter new password"
                             placeholderTextColor={theme.subText}
                             secureTextEntry
-                            value={password}
-                            onChangeText={setPassword}
+                            value={newPassword}
+                            onChangeText={setNewPassword}
                         />
                     </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Confirm Password</Text>
-                        <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Confirm new password"
-                            placeholderTextColor={theme.subText}
-                            secureTextEntry
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                        />
-                    </View>
+
                     <TouchableOpacity
                         style={[styles.submitBtn, { backgroundColor: theme.primary }]}
                         onPress={handleReset}
