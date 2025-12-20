@@ -17,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet, Key, User } from "lucide-react-native";
 
-const API_BASE_URL = "https://saini-record-management.onrender.com";
+const API_BASE_URL = "https://saini-record-management-backend.vercel.app";
 
 // Android par LayoutAnimation enable karne ke liye
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -250,14 +250,6 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.headerActions}>
-          {/* Change Password Button */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("changePassword", { userType: 'user' })}
-            style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border, marginLeft: 5 }]}
-          >
-            <Key size={20} color={theme.text} />
-          </TouchableOpacity>
-
           {/* Logout Button pe ab handleLogoutPress function hai */}
           <TouchableOpacity onPress={handleLogoutPress} style={[styles.iconBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
             <LogOut size={20} color="#DC2626" />

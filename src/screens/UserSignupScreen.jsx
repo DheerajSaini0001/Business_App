@@ -84,7 +84,7 @@ export default function UserSignup({ navigation }) {
       const payload = { ...formData, adminId };
 
       const response = await fetch(
-        "https://saini-record-management.onrender.com/users/UserSignup",
+        "https://saini-record-management-backend.vercel.app/users/UserSignup",
         {
           method: "POST",
           headers: {

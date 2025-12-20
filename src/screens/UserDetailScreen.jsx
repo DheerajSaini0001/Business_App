@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { User, Phone } from 'lucide-react-native';
 
-const BASE_URL = "https://saini-record-management.onrender.com";
+const BASE_URL = "https://saini-record-management-backend.vercel.app";
 const COST_PER_HOUR = 150;
 
 // === COLOR PALETTE ===

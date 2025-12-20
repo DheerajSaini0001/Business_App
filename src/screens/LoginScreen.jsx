@@ -64,7 +64,7 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         try {
             // 1. User Login
-            let response = await fetch("https://saini-record-management.onrender.com/users/login", {
+            let response = await fetch("https://saini-record-management-backend.vercel.app/users/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userid: idInput.trim(), password: password.trim() }),
@@ -80,7 +80,7 @@ export default function LoginScreen({ navigation }) {
             }
 
             // 2. Admin Login
-            response = await fetch("https://saini-record-management.onrender.com/admin/admin-login", {
+            response = await fetch("https://saini-record-management-backend.vercel.app/admin/admin-login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ adminId: idInput.trim(), password: password.trim() }),

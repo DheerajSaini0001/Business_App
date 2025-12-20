@@ -19,7 +19,7 @@ import { useNavigation, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 
-const BASE_URL = "https://saini-record-management.onrender.com";
+const BASE_URL = "https://saini-record-management-backend.vercel.app";
 
 // Android Layout Animation Enable
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
