@@ -1,50 +1,51 @@
-import React, { 
-  createContext, 
-  useState, 
-  useContext, 
-  useMemo, 
-  useCallback 
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useMemo,
+  useCallback
 } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  StatusBar, 
-  SafeAreaView, 
-  Appearance 
-} from "react-native"; // ✅ use normal react-native, not react-native-web
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  StatusBar,
+  SafeAreaView,
+  Appearance
+} from "react-native";
 
 // --- 1. CONTEXT CREATION ---
 const ThemeContext = createContext({
   isDarkMode: false,
   theme: {},
-  toggleTheme: () => {},
+  toggleTheme: () => { },
 });
 
 // --- 2. THEME PROVIDER ---
 export const ThemeProvider = ({ children }) => {
-  const colorScheme = Appearance.getColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(colorScheme === "dark");
+  // FORCE LIGHT MODE: Always set isDarkMode to false
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const toggleTheme = useCallback(() => {
-    setIsDarkMode((prev) => !prev);
+    // Disable toggling: Do nothing or maybe log a message
+    console.log("Dark mode is disabled.");
   }, []);
 
-  // ✅ Enhanced theme object with all color variants
+  // ✅ Enhanced theme object - Forced Light Mode
   const theme = useMemo(() => ({
-    background: isDarkMode ? "#121212" : "#f8f9fa",
-    card: isDarkMode ? "#1e1e1e" : "#ffffff",
-    text: isDarkMode ? "#ffffff" : "#212529",
-    subText: isDarkMode ? "#ffffff" : "#212529",
-    logOut: isDarkMode ? "#ffffff" : "#212529",
-    logOuttext: isDarkMode ? "#212529": "#ffffff" ,
-    textSecondary: isDarkMode ? "#aaaaaa" : "#6c757d",
-    border: isDarkMode ? "#333333" : "#ced4da",
-    placeholder: isDarkMode ? "#888888" : "#999999",
+    background: "#f8f9fa",
+    card: "#ffffff",
+    text: "#212529",
+    subText: "#212529",
+    logOut: "#212529",
+    logOuttext: "#ffffff",
+    textSecondary: "#6c757d",
+    border: "#ced4da",
+    placeholder: "#999999",
     primary: "#3b82f6",
-    icon: isDarkMode ? "#dddddd" : "#666666",
-  }), [isDarkMode]);
+    icon: "#666666",
+  }), []); // Removed dependency on isDarkMode since it's constant
 
   const value = useMemo(() => ({
     isDarkMode,
@@ -55,7 +56,7 @@ export const ThemeProvider = ({ children }) => {
   return (
     <ThemeContext.Provider value={value}>
       <StatusBar
-        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        barStyle="dark-content"
         backgroundColor={theme.background}
       />
       {children}
@@ -72,78 +73,14 @@ export const useTheme = () => {
   return context;
 };
 
-// --- 4. DEMO SCREEN (for testing only) ---
-const MainScreen = () => {
-  const { theme, isDarkMode, toggleTheme } = useTheme();
-  const styles = getDynamicStyles(theme);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Theme Context Demo</Text>
-        <Text style={styles.text}>
-          Current mode: {isDarkMode ? "🌙 Dark" : "☀️ Light"}
-        </Text>
-
-        <TouchableOpacity style={styles.button} onPress={toggleTheme}>
-          <Text style={styles.buttonText}>Toggle Theme</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-};
-
-// --- 5. DYNAMIC STYLES ---
-const getDynamicStyles = (theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: theme.background,
-  },
-  card: {
-    backgroundColor: theme.card,
-    padding: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: theme.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: theme.text,
-    marginBottom: 12,
-  },
-  text: {
-    fontSize: 16,
-    color: theme.textSecondary,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: theme.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
- 
-});
-
-// --- 6. ROOT APP (for preview/testing) ---
+// ... (Rest of the file remains strictly for structure's sake, but we don't need the demo screen exports if not used)
+// Keeping export default for App to avoid breaking if this file is treated as an entry point for testing
 export default function App() {
   return (
     <ThemeProvider>
-      <MainScreen />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Theme Context Active (Forced Light Mode)</Text>
+      </View>
     </ThemeProvider>
   );
 }

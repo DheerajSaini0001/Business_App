@@ -19,7 +19,7 @@ import { useNavigation, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 
-const BASE_URL = "https://saini-record-management.onrender.com";
+const BASE_URL = "https://water-record-management-system-back.vercel.app";
 
 // Android Layout Animation Enable
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -242,11 +242,15 @@ export default function AdminOverviewScreen() {
 
       <View style={[styles.container, { backgroundColor: theme.background }]}>
 
-        {/* === HEADER === */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.greeting, { color: theme.subText }]}>Hello, Admin 👋</Text>
-            <Text style={[styles.title, { color: theme.text }]}>Overview</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoLetter}>S</Text>
+            </View>
+            <View>
+              <Text style={[styles.greeting, { color: theme.subText }]}>Hello, Admin 👋</Text>
+              <Text style={[styles.title, { color: theme.text }]}>Overview</Text>
+            </View>
           </View>
           <View style={[styles.dateBadge, { backgroundColor: theme.card }]}>
             <Text style={[styles.dateText, { color: theme.primary }]}>{formatDate(new Date())}</Text>
@@ -443,7 +447,7 @@ const styles = StyleSheet.create({
   statsGrid: { marginBottom: 20 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   compactCard: {
-    padding: 12,
+    padding: 16,
     borderRadius: 16,
     elevation: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -473,8 +477,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 10,
+    marginBottom: 12,
+    marginTop: 24,
     paddingVertical: 5
   },
   sectionHeader: { fontSize: 17, fontWeight: '700' },
@@ -495,7 +499,7 @@ const styles = StyleSheet.create({
   // Transaction Card (Compact)
   transactionCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 12, borderRadius: 14, marginBottom: 8,
+    padding: 16, borderRadius: 16, marginBottom: 12,
     elevation: 2, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3
   },
   transLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -524,5 +528,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // --- Logo Styles ---
+  logoBox: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#0B1C38', // Brand NAVY
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#0B1C38',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  logoLetter: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#BFA15F', // Brand GOLD
+    marginBottom: 2,
   },
 });

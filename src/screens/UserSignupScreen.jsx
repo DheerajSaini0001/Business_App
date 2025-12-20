@@ -13,14 +13,25 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { User, Phone, Lock, CheckCircle } from "lucide-react-native";
+import { User, Phone, Lock, CheckCircle, ArrowLeft } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
+// --- Brand Colors ---
+const COLORS = {
+  NAVY: '#0B1C38',
+  GOLD: '#BFA15F',
+  WHITE: '#FFFFFF',
+  GRAY_LIGHT: '#F8FAFC',
+  GRAY_BORDER: '#E2E8F0',
+  TEXT_MAIN: '#1E293B',
+  TEXT_SUB: '#64748B'
+};
+
 export default function UserSignup({ navigation }) {
   const [formData, setFormData] = useState({
+    userid: "",
     fullName: "",
     phone: "",
     password: "",
@@ -32,37 +43,28 @@ export default function UserSignup({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const handleLogin = () => {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "homeScreen" }],
-    });
-  };
-
-  // Handle change
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle submit
   const handleSubmit = async () => {
     if (
+      !formData.userid ||
       !formData.fullName ||
-      !formData.phone ||
       !formData.password ||
       !formData.confirmPassword
     ) {
-      Alert.alert("Error", "Please fill all fields!");
+      Alert.alert("Missing Information", "Please fill in all required fields.");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert("Error", "Passwords do not match!");
+      Alert.alert("Password Mismatch", "Passwords do not match.");
       return;
     }
 
     if (!formData.terms) {
-      Alert.alert("Error", "You must accept the terms and conditions!");
+      Alert.alert("Terms Required", "Please accept the terms and conditions.");
       return;
     }
 
@@ -74,7 +76,7 @@ export default function UserSignup({ navigation }) {
       const adminToken = await AsyncStorage.getItem("adminToken");
 
       if (!adminId) {
-        Alert.alert("Error", "Admin ID not found. Please login again.");
+        Alert.alert("Authentication Error", "Admin ID not found. Please login again.");
         setLoading(false);
         return;
       }
@@ -82,7 +84,7 @@ export default function UserSignup({ navigation }) {
       const payload = { ...formData, adminId };
 
       const response = await fetch(
-        "https://saini-record-management.onrender.com/users/UserSignup",
+        "https://water-record-management-system-back.vercel.app/users/UserSignup",
         {
           method: "POST",
           headers: {
@@ -96,8 +98,9 @@ export default function UserSignup({ navigation }) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success 🎉", "User Added Successfully!");
+        Alert.alert("Success", "New User Added Successfully!");
         setFormData({
+          userid: "",
           fullName: "",
           phone: "",
           password: "",
@@ -105,227 +108,248 @@ export default function UserSignup({ navigation }) {
           role: "user",
           terms: false,
         });
-        navigation.navigate("adminDashboard");
+        navigation.goBack();
       } else {
-        Alert.alert("Signup Failed ❌", data.error || "Something went wrong");
+        Alert.alert("Registration Failed", data.error || "Please check your inputs and try again.");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Network Error ❌", "Could not connect to the server.");
+      Alert.alert("Network Error", "Could not connect to the server.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <LinearGradient
-      colors={["#4c669f", "#3b5998", "#192f6a"]}
-      style={styles.gradientBackground}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1, backgroundColor: COLORS.WHITE }}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.card}>
-            <Text style={styles.header}>Add User</Text>
+      <ScrollView contentContainerStyle={styles.container}>
 
-            {/* This message text will appear if you set the 'message' state */}
-            {message ? <Text style={styles.message}>{message}</Text> : null}
+        {/* --- Header --- */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <ArrowLeft size={24} color={COLORS.NAVY} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add New User</Text>
+        </View>
 
-            {/* --- Full Name --- */}
-            <View style={styles.inputContainer}>
-              <User color="#666" size={20} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                placeholderTextColor="#999"
-                value={formData.fullName}
-                onChangeText={(text) => handleChange("fullName", text)}
-              />
-            </View>
-
-            {/* --- Phone --- */}
-            <View style={styles.inputContainer}>
-              <Phone color="#666" size={20} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-                value={formData.phone}
-                onChangeText={(text) => handleChange("phone", text)}
-              />
-            </View>
-
-            {/* --- Password --- */}
-            <View style={styles.inputContainer}>
-              <Lock color="#666" size={20} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#999"
-                secureTextEntry
-                value={formData.password}
-                onChangeText={(text) => handleChange("password", text)}
-              />
-            </View>
-
-            {/* --- Confirm Password --- */}
-            <View style={styles.inputContainer}>
-              <CheckCircle color="#666" size={20} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm Password"
-                placeholderTextColor="#999"
-                secureTextEntry
-                value={formData.confirmPassword}
-                onChangeText={(text) => handleChange("confirmPassword", text)}
-              />
-            </View>
-
-            {/* Terms */}
-            <View style={styles.termsContainer}>
-              <Switch
-                trackColor={{ false: "#767577", true: "#4c669f" }}
-                thumbColor={formData.terms ? "#fff" : "#f4f3f4"}
-                onValueChange={(val) => handleChange("terms", val)}
-                value={formData.terms}
-              />
-              <Text style={styles.termsText}>
-                I agree to the terms & conditions
-              </Text>
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Login Link */}
-            <TouchableOpacity onPress={handleLogin} style={styles.loginLinkContainer}>
-              <Text style={styles.loginLinkText}>
-                Already have an account? <Text style={styles.loginLinkBold}>Login</Text>
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.brandingContainer}>
+          <View style={styles.logoCircle}>
+            <Text style={styles.logoText}>S</Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient >
+          <Text style={styles.subHeader}>Create User Account</Text>
+        </View>
+
+        {/* --- Form --- */}
+        <View style={styles.formContainer}>
+
+          {/* User ID */}
+          <View style={styles.inputGroup}>
+            <View style={styles.iconContainer}>
+              <User color={COLORS.NAVY} size={20} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="User ID"
+              placeholderTextColor={COLORS.TEXT_SUB}
+              value={formData.userid}
+              onChangeText={(text) => handleChange("userid", text)}
+              autoCapitalize="none"
+            />
+          </View>
+
+          {/* Full Name */}
+          <View style={styles.inputGroup}>
+            <View style={styles.iconContainer}>
+              <User color={COLORS.NAVY} size={20} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor={COLORS.TEXT_SUB}
+              value={formData.fullName}
+              onChangeText={(text) => handleChange("fullName", text)}
+            />
+          </View>
+
+          {/* Phone */}
+          <View style={styles.inputGroup}>
+            <View style={styles.iconContainer}>
+              <Phone color={COLORS.NAVY} size={20} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number (Optional)"
+              placeholderTextColor={COLORS.TEXT_SUB}
+              keyboardType="phone-pad"
+              value={formData.phone}
+              onChangeText={(text) => handleChange("phone", text)}
+            />
+          </View>
+
+          {/* Password */}
+          <View style={styles.inputGroup}>
+            <View style={styles.iconContainer}>
+              <Lock color={COLORS.NAVY} size={20} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={COLORS.TEXT_SUB}
+              secureTextEntry
+              value={formData.password}
+              onChangeText={(text) => handleChange("password", text)}
+            />
+          </View>
+
+          {/* Confirm Password */}
+          <View style={styles.inputGroup}>
+            <View style={styles.iconContainer}>
+              <CheckCircle color={COLORS.NAVY} size={20} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor={COLORS.TEXT_SUB}
+              secureTextEntry
+              value={formData.confirmPassword}
+              onChangeText={(text) => handleChange("confirmPassword", text)}
+            />
+          </View>
+
+          {/* Terms Switch */}
+          <View style={styles.termsRow}>
+            <Switch
+              trackColor={{ false: "#CBD5E1", true: COLORS.NAVY }}
+              thumbColor={COLORS.WHITE}
+              ios_backgroundColor="#CBD5E1"
+              onValueChange={(val) => handleChange("terms", val)}
+              value={formData.terms}
+            />
+            <Text style={styles.termsText}>I agree to the Terms & Conditions</Text>
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={styles.submitBtn}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.NAVY} />
+            ) : (
+              <Text style={styles.btnText}>Create User</Text>
+            )}
+          </TouchableOpacity>
+
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  gradientBackground: {
-    flex: 1,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollContainer: {
+  container: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
+    padding: 24,
+    backgroundColor: COLORS.WHITE,
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 25,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
   },
-  header: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#333",
-    marginBottom: 5,
+  backBtn: {
+    padding: 8,
+    marginRight: 12,
+    backgroundColor: COLORS.GRAY_LIGHT,
+    borderRadius: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.NAVY,
+  },
+  brandingContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.NAVY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: COLORS.NAVY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: COLORS.GOLD,
   },
   subHeader: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 25,
+    fontSize: 16,
+    color: COLORS.TEXT_SUB,
+    fontWeight: '500',
   },
-  message: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#e74c3c",
-    marginBottom: 15,
+  formContainer: {
+    gap: 16,
   },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
+  inputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.GRAY_LIGHT,
     borderRadius: 12,
-    marginBottom: 15,
-    paddingHorizontal: 15,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: COLORS.GRAY_BORDER,
+    height: 56,
+    paddingHorizontal: 16,
   },
-  icon: {
-    marginRight: 10,
+  iconContainer: {
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    paddingVertical: 15,
+    height: '100%',
     fontSize: 16,
-    color: "#333",
+    color: COLORS.NAVY,
+    fontWeight: '500',
   },
-  termsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 25,
-    marginTop: 5,
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 12,
   },
   termsText: {
-    marginLeft: 10,
-    color: "#555",
     fontSize: 14,
+    color: COLORS.TEXT_MAIN,
   },
-  button: {
-    backgroundColor: "#4c669f",
-    paddingVertical: 16,
+  submitBtn: {
+    backgroundColor: COLORS.GOLD,
+    height: 56,
     borderRadius: 12,
-    alignItems: "center",
-    shadowColor: "#4c669f",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
+    shadowColor: COLORS.GOLD,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  buttonText: {
-    color: "#fff",
+  btnText: {
+    color: COLORS.NAVY,
     fontSize: 18,
-    fontWeight: "bold",
-  },
-  loginLinkContainer: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  loginLinkText: {
-    color: "#666",
-    fontSize: 15,
-  },
-  loginLinkBold: {
-    color: "#4c669f",
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

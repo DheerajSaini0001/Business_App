@@ -15,7 +15,12 @@ const Navbar = ({ navigation }) => {
   return (
     <View style={styles.navbar}>
       {/* 🏷️ App Name */}
-      <Text style={styles.title}>Saini Record Management</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.logoBox}>
+          <Text style={styles.logoLetter}>S</Text>
+        </View>
+        <Text style={styles.title}>Saini Record Management</Text>
+      </View>
 
 
 
@@ -125,5 +130,21 @@ const getStyles = (theme) =>
     menuText: {
       fontSize: 16,
       color: theme.text,
+    },
+    // --- Logo Styles ---
+    logoBox: {
+      width: 35,
+      height: 35,
+      borderRadius: 17.5,
+      backgroundColor: '#0B1C38', // Brand NAVY
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    logoLetter: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: '#BFA15F', // Brand GOLD
+      marginBottom: 2,
     },
   });

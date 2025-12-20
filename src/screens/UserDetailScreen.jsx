@@ -11,14 +11,15 @@ import {
   Alert,
   Platform,
   SafeAreaView,
-  StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  StatusBar
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const BASE_URL = "https://saini-record-management.onrender.com";
+const BASE_URL = "https://water-record-management-system-back.vercel.app";
 const COST_PER_HOUR = 150;
 
 // === COLOR PALETTE ===
@@ -464,6 +465,54 @@ export default function UserDetail() {
     } catch (e) { }
   };
 
+  // === NEW STATUS TOGGLE FUNCTIONS ===
+  const handleToggleDailyStatus = async (day) => {
+    const token = await AsyncStorage.getItem("adminToken");
+    const currentStatus = day.status || "pending";
+    const newStatus = currentStatus === "paid" ? "pending" : "paid";
+    const dateStr = new Date(day.date).toISOString().split('T')[0];
+
+    try {
+      // Assuming the endpoint is mounted under /dailyentry or /user-daily-data
+      // Using /dailyentry based on existing file structure consistency
+      const res = await fetch(`${BASE_URL}/dailyentry/update-day-status/${user._id}/${dateStr}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        // Optimistic Update or Refresh
+        setDailyData(prev => ({
+          ...prev,
+          days: prev.days.map(d => d._id === day._id ? { ...d, status: newStatus } : d)
+        }));
+      } else {
+        Alert.alert("Error", "Failed to update status");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleToggleSessionStatus = async (s) => {
+    const token = await AsyncStorage.getItem("adminToken");
+    const currentStatus = s.status || "pending";
+    const newStatus = currentStatus === "paid" ? "pending" : "paid";
+
+    try {
+      const res = await fetch(`${BASE_URL}/session/update-status/${s._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        setSession(prev => prev.map(item => item._id === s._id ? { ...item, status: newStatus } : item));
+      } else {
+        Alert.alert("Error", "Failed to update status");
+      }
+    } catch (err) { console.error(err); }
+  };
+
   // === RENDER HELPERS ===
   const getPickerValue = () => {
     if (activeTimeField === 'daily') return manualDate;
@@ -487,165 +536,304 @@ export default function UserDetail() {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* WRAPPER FOR TABS AND CONTENT */}
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <View style={{ flex: 1 }}>
 
-        <ScrollView style={styles.container} contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]}>
+          <ScrollView style={styles.container} contentContainerStyle={[styles.scrollContent, { paddingBottom: 150 }]} keyboardShouldPersistTaps="handled">
 
-          {/* === HEADER & NAV === */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Back to Dashboard</Text>
-          </TouchableOpacity>
-
-          {/* === USER PROFILE CARD === */}
-          <View style={styles.card}>
-            <View style={styles.userHeader}>
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}</Text>
-              </View>
-              <View>
-                <Text style={styles.userName}>{user.fullName}</Text>
-                <Text style={styles.userRole}>{user.role} • {formatDateDMY(new Date(user.createdAt))}</Text>
-                <Text style={styles.userPhone}>{user.phone}</Text>
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={[styles.statValue, { color: COLORS.danger }]}>{user.pendingAmount}</Text>
-              </View>
-              <View style={styles.verticalDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Discount</Text>
-                <Text style={[styles.statValue, { color: COLORS.success }]}>{user.discountAmount}</Text>
-              </View>
-            </View>
-
-            {/* === TABS === */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity onPress={() => setFilterType("session")} style={[styles.tabButton, filterType === "session" && styles.activeTab]}>
-                <Text style={[styles.tabText, filterType === "session" && styles.activeTabText]}>Session</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setFilterType("daily")} style={[styles.tabButton, filterType === "daily" && styles.activeTab]}>
-                <Text style={[styles.tabText, filterType === "daily" && styles.activeTabText]}>Tanker</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity onPress={() => setShowDepositForm(!showDepositForm)} style={styles.actionButtonSecondary}>
-              <Text style={styles.actionButtonSecondaryText}>{showDepositForm ? "Close Deposit Form" : "Deposit Money"}</Text>
+            {/* === HEADER & NAV === */}
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>← Back to Dashboard</Text>
             </TouchableOpacity>
 
-            {showDepositForm && (
-              <View style={styles.formContainer}>
-                <Text style={styles.sectionTitle}>Add Deposit</Text>
-                <TextInput style={styles.input} placeholder="Deposit Amount" value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                <TextInput style={styles.input} placeholder="Discount Amount" value={discountAmount} onChangeText={setDiscountAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                <TextInput style={styles.input} placeholder="Message (Optional)" value={message} onChangeText={setMessage} placeholderTextColor={COLORS.subText} />
-                <TouchableOpacity onPress={handleAddDeposit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Submit Deposit</Text></TouchableOpacity>
+            {/* === USER PROFILE CARD === */}
+            <View style={styles.card}>
+              <View style={styles.userHeader}>
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarText}>{user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}</Text>
+                </View>
+                <View>
+                  <Text style={styles.userName}>{user.fullName}</Text>
+                  <Text style={styles.userRole}>{user.role} • {formatDateDMY(new Date(user.createdAt))}</Text>
+                  <Text style={styles.userPhone}>{user.userid} • {user.phone}</Text>
+                </View>
               </View>
-            )}
-          </View>
 
-          {/* === DEPOSIT HISTORY === */}
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.accordionHeader}
-              onPress={() => { setShowDepositHistory(!showDepositHistory); if (!showDepositHistory) fetchDepositHistory(); }}
-            >
-              <Text style={styles.cardTitle}>Deposit History</Text>
-              <Text style={styles.accordionIcon}>{showDepositHistory ? "▲" : "▼"}</Text>
-            </TouchableOpacity>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Pending</Text>
+                  <Text style={[styles.statValue, { color: COLORS.danger }]}>{user.pendingAmount}</Text>
+                </View>
+                <View style={styles.verticalDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Discount</Text>
+                  <Text style={[styles.statValue, { color: COLORS.success }]}>{user.discountAmount}</Text>
+                </View>
+              </View>
 
-            {showDepositHistory && (
-              <View style={styles.historyList}>
-                <TableHeader items={["Date", "Dep", "Disc", "Msg"]} />
-                {deposits.map((dep) => (
-                  <View key={dep._id} style={styles.tableRow}>
-                    <Text style={styles.tableCell}>{formatDateDMY(dep.createdAt)}</Text>
-                    <Text style={[styles.tableCell, { color: COLORS.success, fontWeight: 'bold' }]}>{dep.depositAmount}</Text>
-                    <Text style={[styles.tableCell, { color: COLORS.danger }]}>{dep.discountAmount}</Text>
-                    <Text style={[styles.tableCell, styles.msgCell]}>{dep.message || "-"}</Text>
+              {/* === TABS === */}
+              <View style={styles.tabContainer}>
+                <TouchableOpacity onPress={() => setFilterType("session")} style={[styles.tabButton, filterType === "session" && styles.activeTab]}>
+                  <Text style={[styles.tabText, filterType === "session" && styles.activeTabText]}>Session</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFilterType("daily")} style={[styles.tabButton, filterType === "daily" && styles.activeTab]}>
+                  <Text style={[styles.tabText, filterType === "daily" && styles.activeTabText]}>Tanker</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity onPress={() => setShowDepositForm(!showDepositForm)} style={styles.actionButtonSecondary}>
+                <Text style={styles.actionButtonSecondaryText}>{showDepositForm ? "Close Deposit Form" : "Deposit Money"}</Text>
+              </TouchableOpacity>
+
+              {showDepositForm && (
+                <View style={styles.formContainer}>
+                  <Text style={styles.sectionTitle}>Add Deposit</Text>
+                  <TextInput style={styles.input} placeholder="Deposit Amount" value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
+                  <TextInput style={styles.input} placeholder="Discount Amount" value={discountAmount} onChangeText={setDiscountAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
+                  <TextInput style={styles.input} placeholder="Message (Optional)" value={message} onChangeText={setMessage} placeholderTextColor={COLORS.subText} />
+                  <TouchableOpacity onPress={handleAddDeposit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Submit Deposit</Text></TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* === DEPOSIT HISTORY === */}
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.accordionHeader}
+                onPress={() => { setShowDepositHistory(!showDepositHistory); if (!showDepositHistory) fetchDepositHistory(); }}
+              >
+                <Text style={styles.cardTitle}>Deposit History</Text>
+                <Text style={styles.accordionIcon}>{showDepositHistory ? "▲" : "▼"}</Text>
+              </TouchableOpacity>
+
+              {showDepositHistory && (
+                <View style={styles.historyList}>
+                  <TableHeader items={["Date", "Dep", "Disc", "Msg"]} />
+                  {deposits.map((dep) => (
+                    <View key={dep._id} style={styles.tableRow}>
+                      <Text style={styles.tableCell}>{formatDateDMY(dep.createdAt)}</Text>
+                      <Text style={[styles.tableCell, { color: COLORS.success, fontWeight: 'bold' }]}>{dep.depositAmount}</Text>
+                      <Text style={[styles.tableCell, { color: COLORS.danger }]}>{dep.discountAmount}</Text>
+                      <Text style={[styles.tableCell, styles.msgCell]}>{dep.message || "-"}</Text>
+                    </View>
+                  ))}
+                  {deposits.length === 0 && <Text style={styles.emptyText}>No history found.</Text>}
+                </View>
+              )}
+            </View>
+
+            {/* === LOADING SPINNER === */}
+            {loading && <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />}
+
+            {/* === DAILY ENTRY SECTION === */}
+            {!loading && filterType === "daily" && (
+              <>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>📅 Tanker Management</Text>
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity onPress={() => handleAddData(user._id)} style={[styles.quickActionButton, { backgroundColor: COLORS.success }]}>
+                      <Text style={styles.quickActionText}>+ Today's Tanker</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowManualForm(!showManualForm)} style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}>
+                      <Text style={styles.quickActionText}>{showManualForm ? "Close Manual" : "+ Manual Entry"}</Text>
+                    </TouchableOpacity>
                   </View>
-                ))}
-                {deposits.length === 0 && <Text style={styles.emptyText}>No history found.</Text>}
-              </View>
-            )}
-          </View>
 
-          {/* === LOADING SPINNER === */}
-          {loading && <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />}
-
-          {/* === DAILY ENTRY SECTION === */}
-          {!loading && filterType === "daily" && (
-            <>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>📅 Tanker Management</Text>
-                <View style={styles.actionRow}>
-                  <TouchableOpacity onPress={() => handleAddData(user._id)} style={[styles.quickActionButton, { backgroundColor: COLORS.success }]}>
-                    <Text style={styles.quickActionText}>+ Today's Tanker</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setShowManualForm(!showManualForm)} style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}>
-                    <Text style={styles.quickActionText}>{showManualForm ? "Close Manual" : "+ Manual Entry"}</Text>
-                  </TouchableOpacity>
+                  {showManualForm && (
+                    <View style={styles.formContainer}>
+                      <Text style={styles.sectionSubtitle}>Add Manual Entry</Text>
+                      <TouchableOpacity onPress={() => handleShowPicker('date', 'daily')} style={styles.datePickerButton}>
+                        <Text style={styles.datePickerText}>{formatDateDMY(manualDate.toISOString())}</Text>
+                        <Text>🗓️</Text>
+                      </TouchableOpacity>
+                      <TextInput style={styles.input} placeholder="Value" value={manualTotal} onChangeText={setManualTotal} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
+                      <TextInput style={styles.input} placeholder="Amount" value={manualAmount} onChangeText={setManualAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
+                      <TouchableOpacity onPress={handleManualDailyEntry} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Add Entry</Text></TouchableOpacity>
+                    </View>
+                  )}
                 </View>
 
-                {showManualForm && (
-                  <View style={styles.formContainer}>
-                    <Text style={styles.sectionSubtitle}>Add Manual Entry</Text>
-                    <TouchableOpacity onPress={() => handleShowPicker('date', 'daily')} style={styles.datePickerButton}>
-                      <Text style={styles.datePickerText}>{formatDateDMY(manualDate.toISOString())}</Text>
-                      <Text>🗓️</Text>
+                <View style={styles.dataListContainer}>
+                  {/* SAFE CHECK FOR DATA */}
+                  {(!dailyData.days || dailyData.days.length === 0) ? (
+                    <Text style={styles.emptyText}>No daily entries found.</Text>
+                  ) : (
+                    dailyData.days.map((day) => (
+                      <View key={day._id} style={styles.dailyCard}>
+                        <TouchableOpacity onPress={() => toggleDaily(day._id)} style={styles.dailyHeader}>
+                          <View>
+                            <Text style={styles.dailyDate}>{formatDateDMY(day.date)}</Text>
+                            <Text style={styles.dailyTotal}>Total: {day.dailyTotal}</Text>
+                          </View>
+                          <View style={styles.dailyHeaderActions}>
+                            <TouchableOpacity
+                              onPress={() => handleToggleDailyStatus(day)}
+                              style={[
+                                styles.statusBadge,
+                                (day.status === 'paid') ? styles.statusPaid : styles.statusPending
+                              ]}
+                            >
+                              <Text style={(day.status === 'paid') ? styles.statusTextPaid : styles.statusTextPending}>
+                                {day.status === 'paid' ? "PAID" : "PENDING"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeleteDate(day.date)} style={styles.iconButtonRed}><Text style={styles.iconButtonText}>🗑️</Text></TouchableOpacity>
+                            <Text style={styles.chevron}>{openDaily[day._id] ? "▲" : "▼"}</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        {openDaily[day._id] && (
+                          <View style={styles.dailyContent}>
+                            <TableHeader items={["Tanker", "Amt", "Time", "Act"]} />
+                            {day.entries.map((entry) => (
+                              <View key={entry._id} style={styles.tableRow}>
+                                {editingDailyId === entry._id ? (
+                                  <>
+                                    <View style={{ flex: 2, flexDirection: 'row', gap: 4 }}>
+                                      <TextInput style={[styles.smallInput, { flex: 1 }]} value={editDailyTotal} onChangeText={setEditDailyTotal} keyboardType="numeric" />
+                                      <TextInput style={[styles.smallInput, { flex: 1 }]} value={editDailyAmount} onChangeText={setEditDailyAmount} keyboardType="numeric" />
+                                    </View>
+                                    <Text style={styles.tableCell}>{format12Hour(entry.createdAt)}</Text>
+                                    <View style={styles.actionCell}>
+                                      <TouchableOpacity onPress={() => handleSaveDailyEdit(entry._id)} style={styles.saveBadge}><Text style={styles.badgeText}>✓</Text></TouchableOpacity>
+                                      <TouchableOpacity onPress={handleCancelDailyEdit} style={styles.cancelBadge}><Text style={styles.badgeText}>✕</Text></TouchableOpacity>
+                                    </View>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Text style={styles.tableCell}>{entry.value}</Text>
+                                    <Text style={styles.tableCell}>{entry.amount}</Text>
+                                    <Text style={styles.tableCell}>{format12Hour(entry.createdAt)}</Text>
+                                    <View style={styles.actionCell}>
+                                      <TouchableOpacity onPress={() => handleEditDailyEntry(entry)} style={styles.editBadge}><Text style={styles.badgeText}>✎</Text></TouchableOpacity>
+                                      <TouchableOpacity onPress={() => handleDeleteDailyEntry(entry._id)} style={styles.deleteBadge}><Text style={styles.badgeText}>🗑</Text></TouchableOpacity>
+                                    </View>
+                                  </>
+                                )}
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </View>
+              </>
+            )}
+
+            {/* === SESSION DATA SECTION === */}
+            {!loading && filterType === "session" && (
+              <>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>🕒 Session Controls</Text>
+                  <View style={styles.gridControls}>
+                    <TouchableOpacity onPress={handleAddSession} style={[styles.controlButton, { backgroundColor: COLORS.success }]}>
+                      <Text style={styles.controlButtonText}>Start Session</Text>
                     </TouchableOpacity>
-                    <TextInput style={styles.input} placeholder="Value" value={manualTotal} onChangeText={setManualTotal} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                    <TextInput style={styles.input} placeholder="Amount" value={manualAmount} onChangeText={setManualAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                    <TouchableOpacity onPress={handleManualDailyEntry} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Add Entry</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={handleEndSession} style={[styles.controlButton, { backgroundColor: COLORS.danger }]}>
+                      <Text style={styles.controlButtonText}>End Session</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleStartRecord} disabled={timerRunning} style={[styles.controlButton, { backgroundColor: timerRunning ? COLORS.subText : COLORS.primary }]}>
+                      <Text style={styles.controlButtonText}>Start Timer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleStopRecord} style={[styles.controlButton, { backgroundColor: COLORS.warning }]}>
+                      <Text style={styles.controlButtonText}>Stop Timer</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </View>
+                </View>
 
-              <View style={styles.dataListContainer}>
-                {/* SAFE CHECK FOR DATA */}
-                {(!dailyData.days || dailyData.days.length === 0) ? (
-                  <Text style={styles.emptyText}>No daily entries found.</Text>
-                ) : (
-                  dailyData.days.map((day) => (
-                    <View key={day._id} style={styles.dailyCard}>
-                      <TouchableOpacity onPress={() => toggleDaily(day._id)} style={styles.dailyHeader}>
-                        <View>
-                          <Text style={styles.dailyDate}>{formatDateDMY(day.date)}</Text>
-                          <Text style={styles.dailyTotal}>Total: {day.dailyTotal}</Text>
+                <View style={styles.dataListContainer}>
+                  {session.map((s) => (
+                    <View key={s._id} style={styles.sessionCard}>
+                      <View style={styles.sessionHeaderRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.dateBadge}>
+                            <Text style={styles.dateBadgeText}>{s.records && s.records.length > 0 ? formatDateDMY(new Date(s.records[0].sessionDate || s.records[0].startTime)) : (s.startTime ? formatDateDMY(new Date(s.startTime)) : "Pending")}</Text>
+                          </View>
+                          <Text style={styles.sessionTimeText}>{s.startTime ? format12Hour(s.startTime) : "-"} → {s.stopTime ? format12Hour(s.stopTime) : "Running..."}</Text>
+                          <Text style={styles.costText}>₹{s.totalCost} <Text style={styles.durationText}>({s.totalDurationReadable})</Text></Text>
                         </View>
-                        <View style={styles.dailyHeaderActions}>
-                          <TouchableOpacity onPress={() => handleDeleteDate(day.date)} style={styles.iconButtonRed}><Text style={styles.iconButtonText}>🗑️</Text></TouchableOpacity>
-                          <Text style={styles.chevron}>{openDaily[day._id] ? "▲" : "▼"}</Text>
+                        <View style={styles.sessionActions}>
+                          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                            <TouchableOpacity
+                              onPress={() => handleToggleSessionStatus(s)}
+                              style={[
+                                styles.statusBadge,
+                                (s.status === 'paid') ? styles.statusPaid : styles.statusPending
+                              ]}
+                            >
+                              <Text style={(s.status === 'paid') ? styles.statusTextPaid : styles.statusTextPending}>
+                                {s.status === 'paid' ? "PAID" : "PENDING"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setShowManualFormSession(showManualFormSession === s._id ? null : s._id)} style={styles.iconButtonBlue}><Text style={styles.iconButtonText}>+</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeleteSession(s._id)} style={styles.iconButtonRed}><Text style={styles.iconButtonText}>🗑</Text></TouchableOpacity>
+                          </View>
+                          <TouchableOpacity onPress={() => toggleSession(s._id)} style={styles.toggleTextBtn}>
+                            <Text style={styles.toggleTextBtnText}>{openSession[s._id] ? "Hide Details" : "View Details"}</Text>
+                          </TouchableOpacity>
                         </View>
-                      </TouchableOpacity>
+                      </View>
 
-                      {openDaily[day._id] && (
-                        <View style={styles.dailyContent}>
-                          <TableHeader items={["Tanker", "Amt", "Time", "Act"]} />
-                          {day.entries.map((entry) => (
-                            <View key={entry._id} style={styles.tableRow}>
-                              {editingDailyId === entry._id ? (
+                      {showManualFormSession === s._id && (
+                        <View style={styles.inlineForm}>
+                          <Text style={styles.sectionSubtitle}>Add Record Manually</Text>
+                          <View style={styles.pickerRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.label}>Start</Text>
+                              <View style={styles.miniPickerGroup}>
+                                <TouchableOpacity onPress={() => handleShowPicker('date', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStartTime.toISOString())}</Text></TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleShowPicker('time', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStartTime.toISOString())}</Text></TouchableOpacity>
+                              </View>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.label}>Stop</Text>
+                              <View style={styles.miniPickerGroup}>
+                                <TouchableOpacity onPress={() => handleShowPicker('date', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStopTime.toISOString())}</Text></TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleShowPicker('time', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStopTime.toISOString())}</Text></TouchableOpacity>
+                              </View>
+                            </View>
+                          </View>
+                          <TouchableOpacity onPress={() => handleAddRecord(s._id)} style={styles.smallPrimaryButton}><Text style={styles.smallPrimaryButtonText}>Save Record</Text></TouchableOpacity>
+                        </View>
+                      )}
+
+                      {openSession[s._id] && (
+                        <View style={styles.sessionDetails}>
+                          <TableHeader items={["Date", "Time", "Dur", "Act"]} />
+                          {records.filter((r) => r.sessionId === s._id).map((record) => (
+                            <View key={record._id} style={styles.tableRow}>
+                              {editingRecordId === record._id ? (
                                 <>
-                                  <View style={{ flex: 2, flexDirection: 'row', gap: 4 }}>
-                                    <TextInput style={[styles.smallInput, { flex: 1 }]} value={editDailyTotal} onChangeText={setEditDailyTotal} keyboardType="numeric" />
-                                    <TextInput style={[styles.smallInput, { flex: 1 }]} value={editDailyAmount} onChangeText={setEditDailyAmount} keyboardType="numeric" />
+                                  <View style={styles.tableCell}>
+                                    <TouchableOpacity onPress={() => handleShowPicker('date', 'editStart')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{formatDateDMY(editStartTime)}</Text></TouchableOpacity>
                                   </View>
-                                  <Text style={styles.tableCell}>{format12Hour(entry.createdAt)}</Text>
+                                  <View style={styles.tableCell}>
+                                    <TouchableOpacity onPress={() => handleShowPicker('time', 'editStart')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{format12Hour(editStartTime)}</Text></TouchableOpacity>
+                                    <Text style={{ textAlign: 'center', fontSize: 10 }}>to</Text>
+                                    <TouchableOpacity onPress={() => handleShowPicker('time', 'editStop')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{format12Hour(editStopTime)}</Text></TouchableOpacity>
+                                  </View>
+                                  <Text style={styles.tableCell}>-</Text>
                                   <View style={styles.actionCell}>
-                                    <TouchableOpacity onPress={() => handleSaveDailyEdit(entry._id)} style={styles.saveBadge}><Text style={styles.badgeText}>✓</Text></TouchableOpacity>
-                                    <TouchableOpacity onPress={handleCancelDailyEdit} style={styles.cancelBadge}><Text style={styles.badgeText}>✕</Text></TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleSaveEdit(record)} style={styles.saveBadge}><Text style={styles.badgeText}>✓</Text></TouchableOpacity>
+                                    <TouchableOpacity onPress={handleCancelEdit} style={styles.cancelBadge}><Text style={styles.badgeText}>✕</Text></TouchableOpacity>
                                   </View>
                                 </>
                               ) : (
                                 <>
-                                  <Text style={styles.tableCell}>{entry.value}</Text>
-                                  <Text style={styles.tableCell}>{entry.amount}</Text>
-                                  <Text style={styles.tableCell}>{format12Hour(entry.createdAt)}</Text>
+                                  <Text style={styles.tableCell}>{formatDateDMY(record.startTime)}</Text>
+                                  <View style={styles.tableCell}>
+                                    <Text style={styles.timeText}>{format12Hour(record.startTime)}</Text>
+                                    <Text style={styles.subTimeText}>{record.stopTime ? format12Hour(record.stopTime) : "..."}</Text>
+                                  </View>
+                                  <Text style={[styles.tableCell, { fontSize: 12 }]}>{record.durationReadable}</Text>
                                   <View style={styles.actionCell}>
-                                    <TouchableOpacity onPress={() => handleEditDailyEntry(entry)} style={styles.editBadge}><Text style={styles.badgeText}>✎</Text></TouchableOpacity>
-                                    <TouchableOpacity onPress={() => handleDeleteDailyEntry(entry._id)} style={styles.deleteBadge}><Text style={styles.badgeText}>🗑</Text></TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleEditClick(record)} style={styles.editBadge}><Text style={styles.badgeText}>✎</Text></TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleDelete(record)} style={styles.deleteBadge}><Text style={styles.badgeText}>🗑</Text></TouchableOpacity>
                                   </View>
                                 </>
                               )}
@@ -654,138 +842,28 @@ export default function UserDetail() {
                         </View>
                       )}
                     </View>
-                  ))
-                )}
-              </View>
-            </>
-          )}
-
-          {/* === SESSION DATA SECTION === */}
-          {!loading && filterType === "session" && (
-            <>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>🕒 Session Controls</Text>
-                <View style={styles.gridControls}>
-                  <TouchableOpacity onPress={handleAddSession} style={[styles.controlButton, { backgroundColor: COLORS.success }]}>
-                    <Text style={styles.controlButtonText}>Start Session</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleEndSession} style={[styles.controlButton, { backgroundColor: COLORS.danger }]}>
-                    <Text style={styles.controlButtonText}>End Session</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleStartRecord} disabled={timerRunning} style={[styles.controlButton, { backgroundColor: timerRunning ? COLORS.subText : COLORS.primary }]}>
-                    <Text style={styles.controlButtonText}>Start Timer</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleStopRecord} style={[styles.controlButton, { backgroundColor: COLORS.warning }]}>
-                    <Text style={styles.controlButtonText}>Stop Timer</Text>
-                  </TouchableOpacity>
+                  ))}
+                  {session.length === 0 && <Text style={styles.emptyText}>No sessions found.</Text>}
                 </View>
-              </View>
+              </>
+            )}
 
-              <View style={styles.dataListContainer}>
-                {session.map((s) => (
-                  <View key={s._id} style={styles.sessionCard}>
-                    <View style={styles.sessionHeaderRow}>
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.dateBadge}>
-                          <Text style={styles.dateBadgeText}>{s.startTime ? formatDateDMY(new Date(s.startTime)) : "Pending"}</Text>
-                        </View>
-                        <Text style={styles.sessionTimeText}>{s.startTime ? format12Hour(s.startTime) : "-"} → {s.stopTime ? format12Hour(s.stopTime) : "Running..."}</Text>
-                        <Text style={styles.costText}>₹{s.totalCost} <Text style={styles.durationText}>({s.totalDurationReadable})</Text></Text>
-                      </View>
-                      <View style={styles.sessionActions}>
-                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                          <TouchableOpacity onPress={() => setShowManualFormSession(showManualFormSession === s._id ? null : s._id)} style={styles.iconButtonBlue}><Text style={styles.iconButtonText}>+</Text></TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleDeleteSession(s._id)} style={styles.iconButtonRed}><Text style={styles.iconButtonText}>🗑</Text></TouchableOpacity>
-                        </View>
-                        <TouchableOpacity onPress={() => toggleSession(s._id)} style={styles.toggleTextBtn}>
-                          <Text style={styles.toggleTextBtnText}>{openSession[s._id] ? "Hide Details" : "View Details"}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {showManualFormSession === s._id && (
-                      <View style={styles.inlineForm}>
-                        <Text style={styles.sectionSubtitle}>Add Record Manually</Text>
-                        <View style={styles.pickerRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Start</Text>
-                            <View style={styles.miniPickerGroup}>
-                              <TouchableOpacity onPress={() => handleShowPicker('date', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStartTime.toISOString())}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={() => handleShowPicker('time', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStartTime.toISOString())}</Text></TouchableOpacity>
-                            </View>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Stop</Text>
-                            <View style={styles.miniPickerGroup}>
-                              <TouchableOpacity onPress={() => handleShowPicker('date', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStopTime.toISOString())}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={() => handleShowPicker('time', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStopTime.toISOString())}</Text></TouchableOpacity>
-                            </View>
-                          </View>
-                        </View>
-                        <TouchableOpacity onPress={() => handleAddRecord(s._id)} style={styles.smallPrimaryButton}><Text style={styles.smallPrimaryButtonText}>Save Record</Text></TouchableOpacity>
-                      </View>
-                    )}
-
-                    {openSession[s._id] && (
-                      <View style={styles.sessionDetails}>
-                        <TableHeader items={["Date", "Time", "Dur", "Act"]} />
-                        {records.filter((r) => r.sessionId === s._id).map((record) => (
-                          <View key={record._id} style={styles.tableRow}>
-                            {editingRecordId === record._id ? (
-                              <>
-                                <View style={styles.tableCell}>
-                                  <TouchableOpacity onPress={() => handleShowPicker('date', 'editStart')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{formatDateDMY(editStartTime)}</Text></TouchableOpacity>
-                                </View>
-                                <View style={styles.tableCell}>
-                                  <TouchableOpacity onPress={() => handleShowPicker('time', 'editStart')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{format12Hour(editStartTime)}</Text></TouchableOpacity>
-                                  <Text style={{ textAlign: 'center', fontSize: 10 }}>to</Text>
-                                  <TouchableOpacity onPress={() => handleShowPicker('time', 'editStop')} style={styles.editTimeBtn}><Text style={styles.editTimeText}>{format12Hour(editStopTime)}</Text></TouchableOpacity>
-                                </View>
-                                <Text style={styles.tableCell}>-</Text>
-                                <View style={styles.actionCell}>
-                                  <TouchableOpacity onPress={() => handleSaveEdit(record)} style={styles.saveBadge}><Text style={styles.badgeText}>✓</Text></TouchableOpacity>
-                                  <TouchableOpacity onPress={handleCancelEdit} style={styles.cancelBadge}><Text style={styles.badgeText}>✕</Text></TouchableOpacity>
-                                </View>
-                              </>
-                            ) : (
-                              <>
-                                <Text style={styles.tableCell}>{formatDateDMY(record.startTime)}</Text>
-                                <View style={styles.tableCell}>
-                                  <Text style={styles.timeText}>{format12Hour(record.startTime)}</Text>
-                                  <Text style={styles.subTimeText}>{record.stopTime ? format12Hour(record.stopTime) : "..."}</Text>
-                                </View>
-                                <Text style={[styles.tableCell, { fontSize: 12 }]}>{record.durationReadable}</Text>
-                                <View style={styles.actionCell}>
-                                  <TouchableOpacity onPress={() => handleEditClick(record)} style={styles.editBadge}><Text style={styles.badgeText}>✎</Text></TouchableOpacity>
-                                  <TouchableOpacity onPress={() => handleDelete(record)} style={styles.deleteBadge}><Text style={styles.badgeText}>🗑</Text></TouchableOpacity>
-                                </View>
-                              </>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ))}
-                {session.length === 0 && <Text style={styles.emptyText}>No sessions found.</Text>}
-              </View>
-            </>
-          )}
-
-          {/* === DATE TIME PICKER MODAL === */}
-          {showPicker && (
-            <DateTimePicker
-              value={getPickerValue()}
-              mode={pickerMode}
-              is24Hour={false}
-              display="default"
-              onChange={handleDateChange}
-            />
-          )}
-        </ScrollView>
+            {/* === DATE TIME PICKER MODAL === */}
+            {showPicker && (
+              <DateTimePicker
+                value={getPickerValue()}
+                mode={pickerMode}
+                is24Hour={false}
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </ScrollView>
 
 
-      </View>
+
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -911,4 +989,11 @@ const styles = StyleSheet.create({
   editTimeText: { fontSize: 10, textAlign: 'center' },
   timeText: { fontSize: 13 },
   subTimeText: { fontSize: 11, color: COLORS.subText },
+
+  // Status Badges
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  statusPending: { backgroundColor: '#FFEDD5' },
+  statusPaid: { backgroundColor: '#D1FAE5' },
+  statusTextPending: { color: '#C05621', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+  statusTextPaid: { color: '#047857', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
 });

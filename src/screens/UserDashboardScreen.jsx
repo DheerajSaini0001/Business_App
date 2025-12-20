@@ -15,9 +15,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
-import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet } from "lucide-react-native";
+import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet, Key, User } from "lucide-react-native";
 
-const API_BASE_URL = "https://saini-record-management.onrender.com";
+const API_BASE_URL = "https://water-record-management-system-back.vercel.app";
 
 // Android par LayoutAnimation enable karne ke liye
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -148,6 +148,7 @@ export default function HomeScreen({ navigation }) {
           date: day.date,
           dailyTotal: day.dailyTotal || 0,
           dailyAmount: day.dailyAmount || 0,
+          status: day.status || 'pending',
         }))
         : [];
 
@@ -238,20 +239,23 @@ export default function HomeScreen({ navigation }) {
 
       {/* --- HEADER --- */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.appName, { color: theme.primary }]}>Saini Record Management</Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Dashboard Overview</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={styles.logoBox}>
+            <Text style={styles.logoLetter}>S</Text>
+          </View>
+          <View>
+            <Text style={[styles.appName, { color: theme.primary }]}>Saini Record Management</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Dashboard Overview</Text>
+          </View>
         </View>
 
         <View style={styles.headerActions}>
+          {/* Change Password Button */}
           <TouchableOpacity
-            onPress={toggleTheme}
-            style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => navigation.navigate("changePassword", { userType: 'user' })}
+            style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border, marginLeft: 5 }]}
           >
-            {isDarkMode ?
-              <Sun size={20} color="#FDB813" /> :
-              <Moon size={20} color="#6B7280" />
-            }
+            <Key size={20} color={theme.text} />
           </TouchableOpacity>
 
           {/* Logout Button pe ab handleLogoutPress function hai */}
@@ -271,7 +275,7 @@ export default function HomeScreen({ navigation }) {
                 {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
               </Text>
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.welcomeText, { color: theme.textSecondary }]}>Welcome back,</Text>
               <Text style={[styles.userName, { color: theme.text }]}>{user.fullName}</Text>
             </View>
@@ -281,7 +285,9 @@ export default function HomeScreen({ navigation }) {
 
           <View style={styles.metaInfoRow}>
             <View style={styles.metaItem}>
-              <Phone size={14} color={theme.textSecondary} />
+              <User size={14} color={theme.textSecondary} />
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.userid}</Text>
+              <Phone size={14} color={theme.textSecondary} style={{ marginLeft: 8 }} />
               <Text style={[styles.metaText, { color: theme.textSecondary }]}>{user.phone || "N/A"}</Text>
             </View>
             <View style={styles.metaItem}>
@@ -389,7 +395,18 @@ export default function HomeScreen({ navigation }) {
                   <View key={item._id} style={index !== session.length - 1 ? { borderBottomWidth: 1, borderBottomColor: theme.border } : {}}>
                     <TouchableOpacity onPress={() => toggleRecords(item._id)} style={styles.recordRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.startTime)}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.recordDate, { color: theme.text }]}>{item.records && item.records.length > 0 ? formatDateDMY(item.records[0].sessionDate || item.records[0].startTime) : formatDateDMY(item.startTime)}</Text>
+                          {(item.status === 'paid') ? (
+                            <View style={[styles.badge, { backgroundColor: '#E8F5E9' }]}>
+                              <Text style={[styles.badgeText, { color: '#4CAF50' }]}>PAID</Text>
+                            </View>
+                          ) : (
+                            <View style={[styles.badge, { backgroundColor: '#FFF3E0' }]}>
+                              <Text style={[styles.badgeText, { color: '#FF9800' }]}>PENDING</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.totalDurationReadable}</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
@@ -422,7 +439,18 @@ export default function HomeScreen({ navigation }) {
                 dailyData.map((item, index) => (
                   <View key={item._id} style={[styles.recordRow, index !== dailyData.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.date)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.recordDate, { color: theme.text }]}>{formatDateDMY(item.date)}</Text>
+                        {(item.status === 'paid') ? (
+                          <View style={[styles.badge, { backgroundColor: '#E8F5E9' }]}>
+                            <Text style={[styles.badgeText, { color: '#4CAF50' }]}>PAID</Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.badge, { backgroundColor: '#FFF3E0' }]}>
+                            <Text style={[styles.badgeText, { color: '#FF9800' }]}>PENDING</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={[styles.recordSub, { color: theme.textSecondary }]}>{item.dailyTotal} Tankers</Text>
                     </View>
                     <Text style={[styles.recordAmount, { color: theme.text }]}>₹{item.dailyAmount}</Text>
@@ -704,5 +732,35 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
     opacity: 0.6,
+  },
+  // --- Logo Styles ---
+  logoBox: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#0B1C38', // Brand NAVY
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#0B1C38',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  logoLetter: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#BFA15F', // Brand GOLD
+    marginBottom: 2, // Alignment adjustment
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
 });

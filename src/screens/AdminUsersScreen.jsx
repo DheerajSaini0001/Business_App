@@ -55,7 +55,7 @@ export default function AdminUsersScreen() {
       }
 
       const res = await fetch(
-        "https://saini-record-management.onrender.com/admin/users",
+        "https://water-record-management-system-back.vercel.app/admin/users",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -142,8 +142,8 @@ export default function AdminUsersScreen() {
           <Text style={[styles.headerTitle, { color: theme.text }]}>Users</Text>
           <Text style={[styles.headerSubtitle, { color: theme.subText }]}>Manage client records</Text>
         </View>
-        <View style={[styles.headerIcon, { backgroundColor: theme.card }]}>
-          <Ionicons name="people" size={24} color={theme.primary} />
+        <View style={styles.iconCircle}>
+          <Text style={styles.logoText}>S</Text>
         </View>
       </View>
 
@@ -210,7 +210,6 @@ export default function AdminUsersScreen() {
               {/* Middle: Info */}
               <View style={styles.cardInfo}>
                 <Text style={[styles.cardName, { color: theme.text }]}>{user.fullName}</Text>
-                <Text style={[styles.cardPhone, { color: theme.subText }]}>{user.phone}</Text>
 
                 {/* Badges Row */}
                 <View style={styles.badgesRow}>
@@ -267,9 +266,24 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
   },
-  headerIcon: {
-    padding: 10,
-    borderRadius: 12,
+  iconCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#0B1C38', // Brand NAVY
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#0B1C38',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  logoText: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#BFA15F', // Brand GOLD
+    marginBottom: 2,
   },
 
   // Search

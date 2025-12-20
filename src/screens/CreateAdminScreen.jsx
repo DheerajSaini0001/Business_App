@@ -19,7 +19,7 @@ export default function CreateAdminScreen({ navigation }) {
     const { theme, isDarkMode } = useTheme();
     const [formData, setFormData] = useState({
         fullName: "",
-        email: "",
+        adminId: "",
         phone: "",
         password: "",
         confirmPassword: ""
@@ -31,7 +31,7 @@ export default function CreateAdminScreen({ navigation }) {
     };
 
     const handleSubmit = async () => {
-        if (!formData.fullName || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
+        if (!formData.fullName || !formData.adminId || !formData.phone || !formData.password || !formData.confirmPassword) {
             Alert.alert("Error", "Please fill all fields");
             return;
         }
@@ -52,13 +52,13 @@ export default function CreateAdminScreen({ navigation }) {
 
             const payload = {
                 fullName: formData.fullName,
-                email: formData.email,
+                adminId: formData.adminId,
                 phone: formData.phone,
                 password: formData.password,
                 confirmPassword: formData.confirmPassword,
                 role: "admin"
             };
-            const response = await fetch("https://saini-record-management.onrender.com/admin/create-admin", {
+            const response = await fetch("https://water-record-management-system-back.vercel.app/admin/create-admin", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -86,71 +86,86 @@ export default function CreateAdminScreen({ navigation }) {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
         >
-            <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}>
+            <ScrollView contentContainerStyle={styles.container}>
+
+                {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color={theme.text} />
+                        <Ionicons name="arrow-back" size={24} color="#0B1C38" />
                     </TouchableOpacity>
-                    <Text style={[styles.title, { color: theme.text }]}>Create New Admin</Text>
+                    <Text style={styles.title}>Create Admin</Text>
                 </View>
 
-                <View style={[styles.formCard, { backgroundColor: theme.card }]}>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Full Name</Text>
+                <View style={styles.headerIconContainer}>
+                    <View style={styles.iconCircle}>
+                        <Text style={styles.logoText}>S</Text>
+                    </View>
+                    <Text style={styles.subHeader}>Add New Administrator</Text>
+                </View>
+
+                {/* Form */}
+                <View style={styles.formContainer}>
+
+                    {/* Full Name */}
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="person-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Enter full name"
-                            placeholderTextColor={theme.subText}
+                            style={styles.input}
+                            placeholder="Full Name"
+                            placeholderTextColor="#94A3B8"
                             value={formData.fullName}
                             onChangeText={(text) => handleChange("fullName", text)}
                         />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Email</Text>
+                    {/* Admin ID */}
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="id-card-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Enter email address"
-                            placeholderTextColor={theme.subText}
-                            keyboardType="email-address"
+                            style={styles.input}
+                            placeholder="Admin ID"
+                            placeholderTextColor="#94A3B8"
                             autoCapitalize="none"
-                            value={formData.email}
-                            onChangeText={(text) => handleChange("email", text)}
+                            value={formData.adminId}
+                            onChangeText={(text) => handleChange("adminId", text)}
                         />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Phone Number</Text>
+                    {/* Phone */}
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="call-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Enter phone number"
-                            placeholderTextColor={theme.subText}
+                            style={styles.input}
+                            placeholder="Phone Number"
+                            placeholderTextColor="#94A3B8"
                             keyboardType="phone-pad"
                             value={formData.phone}
                             onChangeText={(text) => handleChange("phone", text)}
                         />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Password</Text>
+                    {/* Password */}
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="lock-closed-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Enter password"
-                            placeholderTextColor={theme.subText}
+                            style={styles.input}
+                            placeholder="Password"
+                            placeholderTextColor="#94A3B8"
                             secureTextEntry
                             value={formData.password}
                             onChangeText={(text) => handleChange("password", text)}
                         />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text }]}>Confirm Password</Text>
+                    {/* Confirm Password */}
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="shield-checkmark-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            placeholder="Confirm password"
-                            placeholderTextColor={theme.subText}
+                            style={styles.input}
+                            placeholder="Confirm Password"
+                            placeholderTextColor="#94A3B8"
                             secureTextEntry
                             value={formData.confirmPassword}
                             onChangeText={(text) => handleChange("confirmPassword", text)}
@@ -158,16 +173,17 @@ export default function CreateAdminScreen({ navigation }) {
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.submitBtn, { backgroundColor: theme.primary }]}
+                        style={styles.submitBtn}
                         onPress={handleSubmit}
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#0B1C38" />
                         ) : (
-                            <Text style={styles.btnText}>Create Admin</Text>
+                            <Text style={styles.btnText}>Create Account</Text>
                         )}
                     </TouchableOpacity>
+
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -177,53 +193,94 @@ export default function CreateAdminScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
-        padding: 20,
+        padding: 24,
+        backgroundColor: '#FFFFFF',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 30,
         marginTop: 10,
-    },
-    backBtn: {
-        marginRight: 15,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    formCard: {
-        padding: 20,
-        borderRadius: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    inputGroup: {
         marginBottom: 20,
     },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: 8,
+    backBtn: {
+        padding: 8,
+        marginRight: 10,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 8,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#0B1C38',
+    },
+    headerIconContainer: {
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    iconCircle: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: '#0B1C38',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        shadowColor: '#0B1C38',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    logoText: {
+        fontSize: 36,
+        fontWeight: '900',
+        color: '#BFA15F',
+        marginBottom: 4,
+    },
+    subHeader: {
+        fontSize: 16,
+        color: '#64748B',
+        fontWeight: '500',
+    },
+    formContainer: {
+        gap: 16,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        height: 56,
+        paddingHorizontal: 16,
+    },
+    inputIcon: {
+        marginRight: 12,
     },
     input: {
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 12,
+        flex: 1,
+        height: '100%',
         fontSize: 16,
+        color: '#0B1C38',
+        fontWeight: '500',
     },
     submitBtn: {
-        padding: 16,
+        backgroundColor: '#BFA15F',
+        height: 56,
         borderRadius: 12,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 20,
+        shadowColor: '#BFA15F',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     btnText: {
-        color: '#fff',
-        fontSize: 16,
+        color: '#0B1C38',
+        fontSize: 18,
         fontWeight: 'bold',
     },
 });

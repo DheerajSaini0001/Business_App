@@ -18,20 +18,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from "./src/context/ThemeContext";
 // --- Aapke Components ---
 import Navbar from "./src/components/Navbar";
-import LandingScreen from "./src/screens/LandingScreen";
 import UserSignupScreen from "./src/screens/UserSignupScreen";
-import UserLoginScreen from "./src/screens/UserLoginScreen";
-import AdminLoginScreen from "./src/screens/AdminLoginScreen";
+import LoginScreen from "./src/screens/LoginScreen";
 import UserDetailScreen from "./src/screens/UserDetailScreen";
 import AdminTabNavigator from "./src/navigation/AdminTabNavigator";
 import UserDashboardScreen from "./src/screens/UserDashboardScreen"
 import CreateAdminScreen from "./src/screens/CreateAdminScreen";
-import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
-import VerifyOtpScreen from "./src/screens/VerifyOtpScreen";
-import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
+
+import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 
 const Stack = createNativeStackNavigator();
 const { width, height } = Dimensions.get('window');
+
+import SplashScreenComponent from "./src/screens/SplashScreen";
+
+// ... existing imports ...
 
 // --- FIX: Saara logic is function ke andar hona chahiye ---
 export default function App() {
@@ -50,6 +51,8 @@ export default function App() {
         await SplashScreen.hideAsync();
         setIsSplashReady(true);
 
+        const minimumDelayPromise = new Promise(resolve => setTimeout(resolve, 2000)); // Wait at least 2 seconds
+
         // 1. Pehle Admin Token check karein
         const adminToken = await AsyncStorage.getItem('adminToken');
 
@@ -58,7 +61,7 @@ export default function App() {
           setInitialRoute('adminDashboard');
         } else {
           // 2. Agar Admin token nahi mila, toh User token check karein
-          const token = await AsyncStorage.getItem('token');
+          const token = await AsyncStorage.getItem('userToken'); // Fixed key name
 
           // Agar token mil gaya, toh app ko seedha 'Dashboard' se shuru karein
           if (token) {
@@ -67,8 +70,7 @@ export default function App() {
           // Agar dono nahi mile, toh initialRoute 'homeScreen' hi rahega
         }
 
-        // Simulate a minimum splash time if needed (optional)
-        // await new Promise(resolve => setTimeout(resolve, 2000));
+        await minimumDelayPromise;
 
       } catch (e) {
         console.error("Failed to fetch token from storage", e);
@@ -83,16 +85,7 @@ export default function App() {
 
   // --- Loading Screen (Custom Splash) ---
   if (isLoading) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar hidden={true} />
-        <Image
-          source={require('./assets/splash-icon.png')}
-          style={styles.splashImage}
-          resizeMode="contain"
-        />
-      </View>
-    );
+    return <SplashScreenComponent />;
   }
 
   // --- Main App Navigator ---
@@ -116,19 +109,16 @@ export default function App() {
             })}
           >
             {/* Aapki saari screens */}
-            <Stack.Screen name="homeScreen" component={LandingScreen} />
+            <Stack.Screen name="homeScreen" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="userSignup" component={UserSignupScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="userLogin" component={UserLoginScreen} />
-            <Stack.Screen name="adminLogin" component={AdminLoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Dashboard" component={UserDashboardScreen} options={{ headerShown: false }} />
 
 
             <Stack.Screen name="adminDashboard" component={AdminTabNavigator} options={{ headerShown: false }} />
             <Stack.Screen name="createAdmin" component={CreateAdminScreen} options={{ headerShown: false }} />
             <Stack.Screen name="userDetail" component={UserDetailScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="verifyOtp" component={VerifyOtpScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="resetPassword" component={ResetPasswordScreen} options={{ headerShown: false }} />
+
+            <Stack.Screen name="changePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
 
           </Stack.Navigator>
 
