@@ -18,6 +18,7 @@ import {
 import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { User, Phone } from 'lucide-react-native';
 
 const BASE_URL = "https://water-record-management-system-back.vercel.app";
 const COST_PER_HOUR = 150;
@@ -94,6 +95,8 @@ export default function UserDetail() {
   const [depositAmount, setDepositAmount] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
   const [message, setMessage] = useState("");
+  const [depositDate, setDepositDate] = useState(new Date());
+  const [showDepositDatePicker, setShowDepositDatePicker] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [deposits, setDeposits] = useState([]);
   const [showDepositHistory, setShowDepositHistory] = useState(false);
@@ -445,12 +448,29 @@ export default function UserDetail() {
   const handleAddDeposit = async () => {
     const token = await AsyncStorage.getItem("adminToken");
     if (!depositAmount && !discountAmount) return Alert.alert("Info", "Enter amount");
+
+    // Format date as YYYY-MM-DD
+    const formattedDate = depositDate.toISOString().split('T')[0];
+
     try {
       const res = await fetch(`${BASE_URL}/deposit/add`, {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ userId: user._id, depositAmount: parseFloat(depositAmount) || 0, discountAmount: parseFloat(discountAmount) || 0, message }),
+        body: JSON.stringify({
+          userId: user._id,
+          depositAmount: parseFloat(depositAmount) || 0,
+          discountAmount: parseFloat(discountAmount) || 0,
+          message,
+          date: formattedDate
+        }),
       });
-      if (res.ok) { Alert.alert("Success", "Deposited!"); setDepositAmount(""); setDiscountAmount(""); setMessage(""); await fetchUser(); }
+      if (res.ok) {
+        Alert.alert("Success", "Deposited!");
+        setDepositAmount("");
+        setDiscountAmount("");
+        setMessage("");
+        setDepositDate(new Date());
+        await fetchUser();
+      }
     } catch (error) { }
   };
 
@@ -461,7 +481,17 @@ export default function UserDetail() {
         {
           headers: { Authorization: `Bearer ${token}` },
         }
-      ); const data = await res.json(); if (res.ok) setDeposits(data || []);
+      );
+      const data = await res.json();
+      if (res.ok) {
+        // Sort deposits by date (newest first)
+        const sortedDeposits = (data || []).sort((a, b) => {
+          const dateA = new Date(a.date || a.createdAt);
+          const dateB = new Date(b.date || b.createdAt);
+          return dateB - dateA;
+        });
+        setDeposits(sortedDeposits);
+      }
     } catch (e) { }
   };
 
@@ -559,7 +589,13 @@ export default function UserDetail() {
                 <View>
                   <Text style={styles.userName}>{user.fullName}</Text>
                   <Text style={styles.userRole}>{user.role} • {formatDateDMY(new Date(user.createdAt))}</Text>
-                  <Text style={styles.userPhone}>{user.userid} • {user.phone}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <User size={14} color="#6B7280" />
+                    <Text style={styles.userPhone}>{user.userid}</Text>
+                    <Text style={styles.userPhone}> </Text>
+                    <Phone size={14} color="#6B7280" />
+                    <Text style={styles.userPhone}>{user.phone}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -592,6 +628,32 @@ export default function UserDetail() {
               {showDepositForm && (
                 <View style={styles.formContainer}>
                   <Text style={styles.sectionTitle}>Add Deposit</Text>
+
+                  {/* Date Picker */}
+                  <TouchableOpacity
+                    onPress={() => setShowDepositDatePicker(true)}
+                    style={[styles.input, { justifyContent: 'center' }]}
+                  >
+                    <Text style={{ color: COLORS.text }}>
+                      Date: {formatDateDMY(depositDate.toISOString())}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showDepositDatePicker && (
+                    <DateTimePicker
+                      value={depositDate}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowDepositDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setDepositDate(selectedDate);
+                        }
+                      }}
+                      maximumDate={new Date()}
+                    />
+                  )}
+
                   <TextInput style={styles.input} placeholder="Deposit Amount" value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
                   <TextInput style={styles.input} placeholder="Discount Amount" value={discountAmount} onChangeText={setDiscountAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
                   <TextInput style={styles.input} placeholder="Message (Optional)" value={message} onChangeText={setMessage} placeholderTextColor={COLORS.subText} />
@@ -615,7 +677,7 @@ export default function UserDetail() {
                   <TableHeader items={["Date", "Dep", "Disc", "Msg"]} />
                   {deposits.map((dep) => (
                     <View key={dep._id} style={styles.tableRow}>
-                      <Text style={styles.tableCell}>{formatDateDMY(dep.createdAt)}</Text>
+                      <Text style={styles.tableCell}>{formatDateDMY(dep.date || dep.createdAt)}</Text>
                       <Text style={[styles.tableCell, { color: COLORS.success, fontWeight: 'bold' }]}>{dep.depositAmount}</Text>
                       <Text style={[styles.tableCell, { color: COLORS.danger }]}>{dep.discountAmount}</Text>
                       <Text style={[styles.tableCell, styles.msgCell]}>{dep.message || "-"}</Text>

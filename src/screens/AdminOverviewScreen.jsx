@@ -401,7 +401,7 @@ export default function AdminOverviewScreen() {
                       </View>
                       <View>
                         <Text style={[styles.transName, { color: theme.text }]}>{dep.userId?.fullName || "User"}</Text>
-                        <Text style={[styles.transDate, { color: theme.subText }]}>{formatDate(dep.createdAt)}</Text>
+                        <Text style={[styles.transDate, { color: theme.subText }]}>{formatDate(dep.date || dep.createdAt)}</Text>
                       </View>
                     </View>
                     <Text style={[styles.transAmount, { color: '#10B981' }]}>+{dep.depositAmount}</Text>

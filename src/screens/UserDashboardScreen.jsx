@@ -333,7 +333,7 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <View>
                       <Text style={[styles.listMainText, { color: theme.text }]}>Deposit</Text>
-                      <Text style={[styles.listSubText, { color: theme.textSecondary }]}>{formatDateDMY(item.createdAt)}</Text>
+                      <Text style={[styles.listSubText, { color: theme.textSecondary }]}>{formatDateDMY(item.date || item.createdAt)}</Text>
                     </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
