@@ -58,7 +58,7 @@ export default function CreateAdminScreen({ navigation }) {
                 confirmPassword: formData.confirmPassword,
                 role: "admin"
             };
-            const response = await fetch("https://water-record-management-system-back.vercel.app/admin/create-admin", {
+            const response = await fetch("https://saini-record-management.onrender.com/admin/create-admin", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

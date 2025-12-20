@@ -48,7 +48,7 @@ export default function AdminProfile() {
         return;
       }
       const res = await fetch(
-        "https://water-record-management-system-back.vercel.app/admin/detail",
+        "https://saini-record-management.onrender.com/admin/detail",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

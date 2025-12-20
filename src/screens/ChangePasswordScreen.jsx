@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Lock, CheckCircle, ArrowLeft } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
-const BASE_URL = "https://water-record-management-system-back.vercel.app";
+const BASE_URL = "https://saini-record-management.onrender.com";
 
 // --- Brand Colors ---
 const COLORS = {

@@ -55,7 +55,7 @@ export default function AdminUsersScreen() {
       }
 
       const res = await fetch(
-        "https://water-record-management-system-back.vercel.app/admin/users",
+        "https://saini-record-management.onrender.com/admin/users",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

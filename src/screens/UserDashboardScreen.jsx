@@ -17,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 import { LogOut, Phone, Calendar, ChevronDown, ChevronUp, Sun, Moon, Wallet, Key, User } from "lucide-react-native";
 
-const API_BASE_URL = "https://water-record-management-system-back.vercel.app";
+const API_BASE_URL = "https://saini-record-management.onrender.com";
 
 // Android par LayoutAnimation enable karne ke liye
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
