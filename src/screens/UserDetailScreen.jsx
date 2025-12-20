@@ -635,7 +635,7 @@ export default function UserDetail() {
                     style={[styles.input, { justifyContent: 'center' }]}
                   >
                     <Text style={{ color: COLORS.text }}>
-                      Date: {formatDateDMY(depositDate.toISOString())}
+                      📅 {formatDateDMY(depositDate.toISOString())}
                     </Text>
                   </TouchableOpacity>
 
@@ -645,8 +645,11 @@ export default function UserDetail() {
                       mode="date"
                       display="default"
                       onChange={(event, selectedDate) => {
-                        setShowDepositDatePicker(Platform.OS === 'ios');
-                        if (selectedDate) {
+                        // On Android, always close the picker
+                        setShowDepositDatePicker(false);
+
+                        // Update the date if user didn't cancel
+                        if (event.type === 'set' && selectedDate) {
                           setDepositDate(selectedDate);
                         }
                       }}
@@ -925,8 +928,8 @@ export default function UserDetail() {
 
 
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </KeyboardAvoidingView >
+    </SafeAreaView >
   );
 }
 
