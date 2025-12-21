@@ -92,6 +92,7 @@ export default function LoginScreen({ navigation }) {
                 await AsyncStorage.setItem("adminToken", data.token);
                 if (data.admin?._id) await AsyncStorage.setItem("adminId", data.admin._id);
                 if (data.admin?.role) await AsyncStorage.setItem("adminRole", data.admin.role);
+                if (data.admin?.fullName) await AsyncStorage.setItem("adminName", data.admin.fullName);
                 navigation.reset({ index: 0, routes: [{ name: "adminDashboard" }] });
                 return;
             }

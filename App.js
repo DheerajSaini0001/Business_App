@@ -30,7 +30,7 @@ import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 const Stack = createNativeStackNavigator();
 const { width, height } = Dimensions.get('window');
 
-import SplashScreenComponent from "./src/screens/SplashScreen";
+// ... existing imports ...
 
 // ... existing imports ...
 
@@ -47,11 +47,10 @@ export default function App() {
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
-        // Hide native splash screen immediately so we can show our custom one
-        await SplashScreen.hideAsync();
-        setIsSplashReady(true);
+        // Keep native splash visible while we load data
 
-        const minimumDelayPromise = new Promise(resolve => setTimeout(resolve, 2000)); // Wait at least 2 seconds
+        // Optional: Minimum delay to show splash (if data loads too fast)
+        // const minimumDelayPromise = new Promise(resolve => setTimeout(resolve, 2000)); 
 
         // 1. Pehle Admin Token check karein
         const adminToken = await AsyncStorage.getItem('adminToken');
@@ -61,7 +60,7 @@ export default function App() {
           setInitialRoute('adminDashboard');
         } else {
           // 2. Agar Admin token nahi mila, toh User token check karein
-          const token = await AsyncStorage.getItem('userToken'); // Fixed key name
+          const token = await AsyncStorage.getItem('userToken');
 
           // Agar token mil gaya, toh app ko seedha 'Dashboard' se shuru karein
           if (token) {
@@ -70,23 +69,21 @@ export default function App() {
           // Agar dono nahi mile, toh initialRoute 'homeScreen' hi rahega
         }
 
-        await minimumDelayPromise;
+        // await minimumDelayPromise; // Wait if you want forced delay
 
       } catch (e) {
         console.error("Failed to fetch token from storage", e);
       } finally {
-        // Checking poori ho gayi, ab loading screen hata dein
+        // Data loaded. Now hide the native splash screen.
         setIsLoading(false);
+        await SplashScreen.hideAsync();
       }
     };
 
     checkLoginStatus();
   }, []); // [] ka matlab hai 'run only once'
 
-  // --- Loading Screen (Custom Splash) ---
-  if (isLoading) {
-    return <SplashScreenComponent />;
-  }
+  // --- Main App Navigator (No 'if loading' return) ---
 
   // --- Main App Navigator ---
   return (

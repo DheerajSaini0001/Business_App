@@ -14,6 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateAdminScreen({ navigation }) {
     const { theme, isDarkMode } = useTheme();
@@ -25,6 +26,8 @@ export default function CreateAdminScreen({ navigation }) {
         confirmPassword: ""
     });
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -51,13 +54,13 @@ export default function CreateAdminScreen({ navigation }) {
             }
 
             const payload = {
-                fullName: formData.fullName,
-                adminId: formData.adminId,
-                phone: formData.phone,
+                fullName: formData.fullName.trim(),
+                adminId: formData.adminId.trim(),
+                phone: formData.phone.trim(),
                 password: formData.password,
-                confirmPassword: formData.confirmPassword,
-                role: "admin"
+                confirmPassword: formData.confirmPassword
             };
+
             const response = await fetch("https://saini-record-management-backend.vercel.app/admin/create-admin", {
                 method: "POST",
                 headers: {
@@ -70,10 +73,15 @@ export default function CreateAdminScreen({ navigation }) {
             const data = await response.json();
 
             if (response.ok) {
-                Alert.alert("Success", "New Admin Created Successfully!");
+                Alert.alert("Success", "New Admin Created Successfully! 🎉");
                 navigation.goBack();
             } else {
-                Alert.alert("Error", data.message || data.error || "Failed to create admin");
+                // Customized error message based on common issues
+                let errorMessage = data.message || data.error || "Failed to create admin";
+                if (response.status === 500) {
+                    errorMessage = "Server Error (500).\n\nLikely Cause: The Phone Number is already registered by another admin.\n\nTry using a different unique phone number.";
+                }
+                Alert.alert(`Error (${response.status})`, errorMessage);
             }
         } catch (error) {
             console.error(error);
@@ -84,109 +92,117 @@ export default function CreateAdminScreen({ navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-        >
-            <ScrollView contentContainerStyle={styles.container}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.container}>
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#0B1C38" />
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Create Admin</Text>
-                </View>
-
-                <View style={styles.headerIconContainer}>
-                    <View style={styles.iconCircle}>
-                        <Text style={styles.logoText}>S</Text>
-                    </View>
-                    <Text style={styles.subHeader}>Add New Administrator</Text>
-                </View>
-
-                {/* Form */}
-                <View style={styles.formContainer}>
-
-                    {/* Full Name */}
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="person-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Full Name"
-                            placeholderTextColor="#94A3B8"
-                            value={formData.fullName}
-                            onChangeText={(text) => handleChange("fullName", text)}
-                        />
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                            <Ionicons name="arrow-back" size={24} color="#0B1C38" />
+                        </TouchableOpacity>
+                        <Text style={styles.title}>Create Admin</Text>
                     </View>
 
-                    {/* Admin ID */}
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="id-card-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Admin ID"
-                            placeholderTextColor="#94A3B8"
-                            autoCapitalize="none"
-                            value={formData.adminId}
-                            onChangeText={(text) => handleChange("adminId", text)}
-                        />
+                    <View style={styles.headerIconContainer}>
+                        <View style={styles.iconCircle}>
+                            <Text style={styles.logoText}>S</Text>
+                        </View>
+                        <Text style={styles.subHeader}>Add New Administrator</Text>
                     </View>
 
-                    {/* Phone */}
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="call-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Phone Number"
-                            placeholderTextColor="#94A3B8"
-                            keyboardType="phone-pad"
-                            value={formData.phone}
-                            onChangeText={(text) => handleChange("phone", text)}
-                        />
+                    {/* Form */}
+                    <View style={styles.formContainer}>
+
+                        {/* Full Name */}
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="person-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Full Name"
+                                placeholderTextColor="#94A3B8"
+                                value={formData.fullName}
+                                onChangeText={(text) => handleChange("fullName", text)}
+                            />
+                        </View>
+
+                        {/* Admin ID */}
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="id-card-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Admin ID"
+                                placeholderTextColor="#94A3B8"
+                                autoCapitalize="none"
+                                value={formData.adminId}
+                                onChangeText={(text) => handleChange("adminId", text)}
+                            />
+                        </View>
+
+                        {/* Phone */}
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="call-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Phone Number"
+                                placeholderTextColor="#94A3B8"
+                                keyboardType="phone-pad"
+                                value={formData.phone}
+                                onChangeText={(text) => handleChange("phone", text)}
+                            />
+                        </View>
+
+                        {/* Password */}
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="lock-closed-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Password"
+                                placeholderTextColor="#94A3B8"
+                                secureTextEntry={!showPassword}
+                                value={formData.password}
+                                onChangeText={(text) => handleChange("password", text)}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Confirm Password */}
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="shield-checkmark-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Confirm Password"
+                                placeholderTextColor="#94A3B8"
+                                secureTextEntry={!showConfirmPassword}
+                                value={formData.confirmPassword}
+                                onChangeText={(text) => handleChange("confirmPassword", text)}
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                <Ionicons name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.submitBtn}
+                            onPress={handleSubmit}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#0B1C38" />
+                            ) : (
+                                <Text style={styles.btnText}>Create Account</Text>
+                            )}
+                        </TouchableOpacity>
+
                     </View>
-
-                    {/* Password */}
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="lock-closed-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password"
-                            placeholderTextColor="#94A3B8"
-                            secureTextEntry
-                            value={formData.password}
-                            onChangeText={(text) => handleChange("password", text)}
-                        />
-                    </View>
-
-                    {/* Confirm Password */}
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="shield-checkmark-outline" size={20} color="#0B1C38" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Confirm Password"
-                            placeholderTextColor="#94A3B8"
-                            secureTextEntry
-                            value={formData.confirmPassword}
-                            onChangeText={(text) => handleChange("confirmPassword", text)}
-                        />
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.submitBtn}
-                        onPress={handleSubmit}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#0B1C38" />
-                        ) : (
-                            <Text style={styles.btnText}>Create Account</Text>
-                        )}
-                    </TouchableOpacity>
-
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 

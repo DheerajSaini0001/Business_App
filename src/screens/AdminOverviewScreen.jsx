@@ -59,6 +59,7 @@ export default function AdminOverviewScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [adminRole, setAdminRole] = useState(null);
+  const [adminName, setAdminName] = useState("Admin");
 
   // --- Toggle States for View All ---
   const [expandTankers, setExpandTankers] = useState(false);
@@ -116,7 +117,11 @@ export default function AdminOverviewScreen() {
     try {
       const token = await AsyncStorage.getItem("adminToken");
       const role = await AsyncStorage.getItem("adminRole");
+      const name = await AsyncStorage.getItem("adminName");
+
       setAdminRole(role);
+      if (name) setAdminName(name);
+
       const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Fetch Deposits
@@ -130,13 +135,17 @@ export default function AdminOverviewScreen() {
         const resDaily = await fetch(`${BASE_URL}/dailyentry/today/all`, { headers });
         if (resDaily.ok) {
           const d = await resDaily.json();
+          // Handle both { data: [...] } and [...] formats
           if (d.data && Array.isArray(d.data)) {
             todaysTankersData = d.data;
-            todaysTankersData.forEach(userRecord => {
-              if (userRecord.totalValue) calculatedTankerCount += userRecord.totalValue;
-              if (userRecord.totalAmount) calculatedTankerValue += userRecord.totalAmount;
-            });
+          } else if (Array.isArray(d)) {
+            todaysTankersData = d;
           }
+
+          todaysTankersData.forEach(userRecord => {
+            if (userRecord.totalValue) calculatedTankerCount += userRecord.totalValue;
+            if (userRecord.totalAmount) calculatedTankerValue += userRecord.totalAmount;
+          });
         }
       } catch (e) { console.log("Daily Entry Fetch Error", e); }
       setTankerList(todaysTankersData);
@@ -149,10 +158,18 @@ export default function AdminOverviewScreen() {
         const resSession = await fetch(`${BASE_URL}/session/today/all`, { headers });
         if (resSession.ok) {
           const s = await resSession.json();
-          if (s.success) {
-            todaysSessionsData = s.data || [];
-            todaySessionCount = s.finalDuration;
+
+          // Handle both { success: true, data: [...] } and raw [...] formats
+          if (s.success && Array.isArray(s.data)) {
+            todaysSessionsData = s.data;
+            todaySessionCount = s.finalDuration || 0;
             totalSessionCost = s.totalCost || 0;
+          } else if (Array.isArray(s)) {
+            todaysSessionsData = s;
+            // If needed, calculate sums manually here if backend doesn't provide them
+          } else if (s.data && Array.isArray(s.data)) {
+            // Fallback if success flag is missing but structure matches
+            todaysSessionsData = s.data;
           }
         }
       } catch (e) { console.log("Session Fetch Error", e); }
@@ -171,7 +188,7 @@ export default function AdminOverviewScreen() {
       setDepositHistory(safeDeposits);
 
       // 5. Calculate Stats
-      const todaysDepositsList = safeDeposits.filter(d => isToday(d.createdAt));
+      const todaysDepositsList = safeDeposits.filter(d => isToday(d.createdAt || d.date));
       const totalDep = todaysDepositsList.reduce((sum, item) => sum + (item.depositAmount || 0), 0);
 
       setTodayStats({
@@ -248,7 +265,7 @@ export default function AdminOverviewScreen() {
               <Text style={styles.logoLetter}>S</Text>
             </View>
             <View>
-              <Text style={[styles.greeting, { color: theme.subText }]}>Hello, Admin 👋</Text>
+              <Text style={[styles.greeting, { color: theme.subText }]}>Hello, {adminName} 👋</Text>
               <Text style={[styles.title, { color: theme.text }]}>Overview</Text>
             </View>
           </View>
@@ -441,7 +458,7 @@ const styles = StyleSheet.create({
   },
   dateText: { fontSize: 12, fontWeight: '700' },
 
-  contentArea: { paddingHorizontal: 20, paddingBottom: 80 },
+  contentArea: { paddingHorizontal: 20, paddingBottom: 20 },
 
   // === NEW COMPACT STATS STYLES ===
   statsGrid: { marginBottom: 20 },
