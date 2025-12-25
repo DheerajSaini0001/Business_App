@@ -69,6 +69,8 @@ export default function AdminUsersScreen() {
 
       const data = await res.json();
       const userList = data.users || [];
+      // Sort: Highest Priority = Most Pending Amount
+      userList.sort((a, b) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
       setUsers(userList);
 
       // If search query exists, maintain the filter, else show all

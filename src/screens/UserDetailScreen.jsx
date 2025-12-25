@@ -13,7 +13,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   KeyboardAvoidingView,
-  StatusBar
+  StatusBar,
+  Modal,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -104,6 +105,13 @@ export default function UserDetail() {
   const [showManualFormSession, setShowManualFormSession] = useState(false);
 
   const [openDaily, setOpenDaily] = useState({});
+
+  // Timer Modal States
+  // Timer Modal States
+  const [showTimerModal, setShowTimerModal] = useState(false);
+  const [timerDate, setTimerDate] = useState(new Date());
+  const [showTimerPicker, setShowTimerPicker] = useState(false);
+  const [timerMode, setTimerMode] = useState('start'); // 'start' | 'stop'
 
   // === HANDLERS ===
   const handleShowPicker = (mode, field) => {
@@ -266,40 +274,73 @@ export default function UserDetail() {
     } catch (err) { Alert.alert("Error", "Network error"); }
   };
 
-  const handleStartRecord = async () => {
-    const token = await AsyncStorage.getItem("adminToken");
+  const handleStartRecord = () => {
     if (timerRunning) return;
     const runningSession = session.find((s) => !s.stopTime);
     if (!runningSession) return Alert.alert("Info", "Start session first.");
-    try {
-      const res = await fetch(`${BASE_URL}/session/addRecord/${runningSession._id}`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ startTime: new Date().toISOString() }),
-      });
-      if (res.ok) {
-        Alert.alert("Success", "Timer Started!");
-        fetchSession();
-        await fetchUser();
-      }
-    } catch (err) { console.error(err); }
+
+    setTimerMode('start');
+    setTimerDate(new Date());
+    setTimerDate(new Date());
+    setShowTimerModal(true);
   };
 
-  const handleStopRecord = async () => {
-    const token = await AsyncStorage.getItem("adminToken");
+  const onTimerDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') setShowTimerPicker(false);
+    if (selectedDate) setTimerDate(selectedDate);
+  };
+
+  const handleStopRecord = () => {
     const runningSession = session.find((s) => !s.stopTime);
     if (!runningSession) return Alert.alert("Info", "No active session.");
     const runningRecord = records.find((r) => !r.stopTime);
     if (!runningRecord) return;
-    try {
-      const res = await fetch(`${BASE_URL}/session/stopRecord/${runningSession._id}/${runningRecord._id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ stopTime: new Date().toISOString() }),
-      });
-      if (res.ok) {
-        Alert.alert("Success", "Timer Stoped!");
-        fetchSession(); await fetchUser();
+
+    setTimerMode('stop');
+    setTimerDate(new Date());
+    setShowTimerModal(true);
+  };
+
+  const handleConfirmTimer = async () => {
+    const token = await AsyncStorage.getItem("adminToken");
+    const runningSession = session.find((s) => !s.stopTime);
+
+    if (timerMode === 'start') {
+      if (!runningSession) {
+        setShowTimerModal(false);
+        return Alert.alert("Info", "Start session first.");
       }
-    } catch (err) { console.error(err); }
+      try {
+        const res = await fetch(`${BASE_URL}/session/addRecord/${runningSession._id}`, {
+          method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ startTime: timerDate.toISOString() }),
+        });
+        if (res.ok) {
+          Alert.alert("Success", "Timer Started!");
+          setShowTimerModal(false);
+          fetchSession();
+          await fetchUser();
+        }
+      } catch (err) { console.error(err); }
+    } else {
+      // STOP MODE
+      if (!runningSession) return Alert.alert("Info", "No active session.");
+      const runningRecord = records.find((r) => !r.stopTime);
+      if (!runningRecord) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/session/stopRecord/${runningSession._id}/${runningRecord._id}`, {
+          method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ stopTime: timerDate.toISOString() }),
+        });
+        if (res.ok) {
+          Alert.alert("Success", "Timer Stopped!");
+          setShowTimerModal(false);
+          fetchSession();
+          await fetchUser();
+        }
+      } catch (err) { console.error(err); }
+    }
   };
 
   const handleAddRecord = async (sessionId) => {
@@ -315,6 +356,7 @@ export default function UserDetail() {
       });
       if (res.ok) {
         Alert.alert("Success", "Manually Session Added!");
+        setShowManualFormSession(null);
         fetchSession(); await fetchUser(); setNewStartTime(new Date()); setNewStopTime(new Date());
       }
       else { const data = await res.json(); Alert.alert("Error", data.message); }
@@ -392,7 +434,11 @@ export default function UserDetail() {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ userId: user._id, date: formattedDate, value: parseFloat(manualTotal), amount: parseFloat(manualAmount) }),
       });
-      if (res.ok) { Alert.alert("Success", "Manually Tanker Added!"); setManualDate(new Date()); setManualTotal(""); setManualAmount(""); fetchDailyData(); await fetchUser(); }
+      if (res.ok) {
+        Alert.alert("Success", "Manually Tanker Added!");
+        setShowManualForm(false);
+        setManualDate(new Date()); setManualTotal(""); setManualAmount(""); fetchDailyData(); await fetchUser();
+      }
     } catch (err) { }
   };
 
@@ -465,6 +511,7 @@ export default function UserDetail() {
       });
       if (res.ok) {
         Alert.alert("Success", "Deposited!");
+        setShowDepositForm(false);
         setDepositAmount("");
         setDiscountAmount("");
         setMessage("");
@@ -621,48 +668,9 @@ export default function UserDetail() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity onPress={() => setShowDepositForm(!showDepositForm)} style={styles.actionButtonSecondary}>
-                <Text style={styles.actionButtonSecondaryText}>{showDepositForm ? "Close Deposit Form" : "Deposit Money"}</Text>
+              <TouchableOpacity onPress={() => setShowDepositForm(true)} style={[styles.primaryButton, { backgroundColor: COLORS.success, marginTop: 12 }]}>
+                <Text style={styles.primaryButtonText}>Deposit Money</Text>
               </TouchableOpacity>
-
-              {showDepositForm && (
-                <View style={styles.formContainer}>
-                  <Text style={styles.sectionTitle}>Add Deposit</Text>
-
-                  {/* Date Picker */}
-                  <TouchableOpacity
-                    onPress={() => setShowDepositDatePicker(true)}
-                    style={[styles.input, { justifyContent: 'center' }]}
-                  >
-                    <Text style={{ color: COLORS.text }}>
-                      📅 {formatDateDMY(depositDate.toISOString())}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {showDepositDatePicker && (
-                    <DateTimePicker
-                      value={depositDate}
-                      mode="date"
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        // On Android, always close the picker
-                        setShowDepositDatePicker(false);
-
-                        // Update the date if user didn't cancel
-                        if (event.type === 'set' && selectedDate) {
-                          setDepositDate(selectedDate);
-                        }
-                      }}
-                      maximumDate={new Date()}
-                    />
-                  )}
-
-                  <TextInput style={styles.input} placeholder="Deposit Amount" value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                  <TextInput style={styles.input} placeholder="Discount Amount" value={discountAmount} onChangeText={setDiscountAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                  <TextInput style={styles.input} placeholder="Message (Optional)" value={message} onChangeText={setMessage} placeholderTextColor={COLORS.subText} />
-                  <TouchableOpacity onPress={handleAddDeposit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Submit Deposit</Text></TouchableOpacity>
-                </View>
-              )}
             </View>
 
             {/* === DEPOSIT HISTORY === */}
@@ -703,23 +711,10 @@ export default function UserDetail() {
                     <TouchableOpacity onPress={() => handleAddData(user._id)} style={[styles.quickActionButton, { backgroundColor: COLORS.success }]}>
                       <Text style={styles.quickActionText}>+ Today's Tanker</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setShowManualForm(!showManualForm)} style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}>
-                      <Text style={styles.quickActionText}>{showManualForm ? "Close Manual" : "+ Manual Entry"}</Text>
+                    <TouchableOpacity onPress={() => setShowManualForm(true)} style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}>
+                      <Text style={styles.quickActionText}>+ Manual Entry</Text>
                     </TouchableOpacity>
                   </View>
-
-                  {showManualForm && (
-                    <View style={styles.formContainer}>
-                      <Text style={styles.sectionSubtitle}>Add Manual Entry</Text>
-                      <TouchableOpacity onPress={() => handleShowPicker('date', 'daily')} style={styles.datePickerButton}>
-                        <Text style={styles.datePickerText}>{formatDateDMY(manualDate.toISOString())}</Text>
-                        <Text>🗓️</Text>
-                      </TouchableOpacity>
-                      <TextInput style={styles.input} placeholder="Value" value={manualTotal} onChangeText={setManualTotal} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                      <TextInput style={styles.input} placeholder="Amount" value={manualAmount} onChangeText={setManualAmount} keyboardType="numeric" placeholderTextColor={COLORS.subText} />
-                      <TouchableOpacity onPress={handleManualDailyEntry} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Add Entry</Text></TouchableOpacity>
-                    </View>
-                  )}
                 </View>
 
                 <View style={styles.dataListContainer}>
@@ -844,29 +839,6 @@ export default function UserDetail() {
                         </View>
                       </View>
 
-                      {showManualFormSession === s._id && (
-                        <View style={styles.inlineForm}>
-                          <Text style={styles.sectionSubtitle}>Add Record Manually</Text>
-                          <View style={styles.pickerRow}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.label}>Start</Text>
-                              <View style={styles.miniPickerGroup}>
-                                <TouchableOpacity onPress={() => handleShowPicker('date', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStartTime.toISOString())}</Text></TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleShowPicker('time', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStartTime.toISOString())}</Text></TouchableOpacity>
-                              </View>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.label}>Stop</Text>
-                              <View style={styles.miniPickerGroup}>
-                                <TouchableOpacity onPress={() => handleShowPicker('date', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStopTime.toISOString())}</Text></TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleShowPicker('time', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStopTime.toISOString())}</Text></TouchableOpacity>
-                              </View>
-                            </View>
-                          </View>
-                          <TouchableOpacity onPress={() => handleAddRecord(s._id)} style={styles.smallPrimaryButton}><Text style={styles.smallPrimaryButtonText}>Save Record</Text></TouchableOpacity>
-                        </View>
-                      )}
-
                       {openSession[s._id] && (
                         <View style={styles.sessionDetails}>
                           <TableHeader items={["Date", "Time", "Dur", "Act"]} />
@@ -929,6 +901,222 @@ export default function UserDetail() {
 
         </View>
       </KeyboardAvoidingView >
+
+      {/* === START TIMER POPUP MODAL === */}
+      <Modal
+        visible={showTimerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTimerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{timerMode === 'start' ? "Start Timer" : "Stop Timer"}</Text>
+            <Text style={styles.modalSubtitle}>{timerMode === 'start' ? "Select Start Time" : "Select Stop Time"}</Text>
+
+            <View style={styles.modalContent}>
+              {Platform.OS === 'android' ? (
+                <TouchableOpacity onPress={() => setShowTimerPicker(true)} style={styles.timeDisplayBtn}>
+                  <Text style={styles.timeDisplayText}>{format12Hour(timerDate.toISOString())}</Text>
+                </TouchableOpacity>
+              ) : (
+                <DateTimePicker
+                  value={timerDate}
+                  mode="time"
+                  display="spinner"
+                  onChange={onTimerDateChange}
+                  style={{ height: 150 }}
+                />
+              )}
+
+              {Platform.OS === 'android' && showTimerPicker && (
+                <DateTimePicker
+                  value={timerDate}
+                  mode="time"
+                  display="default"
+                  onChange={onTimerDateChange}
+                />
+              )}
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity onPress={() => setShowTimerModal(false)} style={styles.modalBtnCancel}>
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleConfirmTimer} style={styles.modalBtnConfirm}>
+                <Text style={styles.modalBtnTextConfirm}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* === DEPOSIT MODAL === */}
+      <Modal
+        visible={showDepositForm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDepositForm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Deposit Money</Text>
+
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              {/* Date Picker Button */}
+              <TouchableOpacity
+                onPress={() => setShowDepositDatePicker(true)}
+                style={[styles.input, { justifyContent: 'center', marginBottom: 12 }]}
+              >
+                <Text style={{ color: COLORS.text }}>
+                  📅 {formatDateDMY(depositDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              {showDepositDatePicker && (
+                <DateTimePicker
+                  value={depositDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDepositDatePicker(Platform.OS === 'ios');
+                    if (event.type === 'set' && selectedDate) {
+                      setDepositDate(selectedDate);
+                      if (Platform.OS === 'android') setShowDepositDatePicker(false);
+                    } else {
+                      if (Platform.OS === 'android') setShowDepositDatePicker(false);
+                    }
+                  }}
+                  maximumDate={new Date()}
+                />
+              )}
+
+              <TextInput
+                style={styles.input}
+                placeholder="Deposit Amount"
+                value={depositAmount}
+                onChangeText={setDepositAmount}
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.subText}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Discount Amount"
+                value={discountAmount}
+                onChangeText={setDiscountAmount}
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.subText}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Message (Optional)"
+                value={message}
+                onChangeText={setMessage}
+                placeholderTextColor={COLORS.subText}
+              />
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity onPress={() => setShowDepositForm(false)} style={styles.modalBtnCancel}>
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleAddDeposit} style={styles.modalBtnConfirm}>
+                <Text style={styles.modalBtnTextConfirm}>Deposit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* === MANUAL SESSION RECORD MODAL === */}
+      <Modal
+        visible={!!showManualFormSession}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowManualFormSession(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Add Manual Record</Text>
+
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <Text style={[styles.label, { marginBottom: 8 }]}>Start Time</Text>
+              <View style={styles.pickerRow}>
+                <TouchableOpacity onPress={() => handleShowPicker('date', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStartTime.toISOString())}</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => handleShowPicker('time', 'start')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStartTime.toISOString())}</Text></TouchableOpacity>
+              </View>
+
+              <Text style={[styles.label, { marginTop: 16, marginBottom: 8 }]}>Stop Time</Text>
+              <View style={styles.pickerRow}>
+                <TouchableOpacity onPress={() => handleShowPicker('date', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{formatDateDMY(newStopTime.toISOString())}</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => handleShowPicker('time', 'stop')} style={styles.miniPicker}><Text style={styles.miniPickerText}>{format12Hour(newStopTime.toISOString())}</Text></TouchableOpacity>
+              </View>
+
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity onPress={() => setShowManualFormSession(null)} style={styles.modalBtnCancel}>
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleAddRecord(showManualFormSession)} style={styles.modalBtnConfirm}>
+                <Text style={styles.modalBtnTextConfirm}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* === MANUAL TANKER ENTRY MODAL === */}
+      <Modal
+        visible={showManualForm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowManualForm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Add Manual Tanker Entry</Text>
+
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              {/* Date Picker Button */}
+              <TouchableOpacity
+                onPress={() => handleShowPicker('date', 'daily')}
+                style={[styles.input, { justifyContent: 'center', marginBottom: 12 }]}
+              >
+                <Text style={{ color: COLORS.text }}>
+                  📅 {formatDateDMY(manualDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Value"
+                value={manualTotal}
+                onChangeText={setManualTotal}
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.subText}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Amount"
+                value={manualAmount}
+                onChangeText={setManualAmount}
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.subText}
+              />
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity onPress={() => setShowManualForm(false)} style={styles.modalBtnCancel}>
+                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleManualDailyEntry} style={styles.modalBtnConfirm}>
+                <Text style={styles.modalBtnTextConfirm}>Add Entry</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView >
   );
 }
@@ -1061,4 +1249,18 @@ const styles = StyleSheet.create({
   statusPaid: { backgroundColor: '#D1FAE5' },
   statusTextPending: { color: '#C05621', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
   statusTextPaid: { color: '#047857', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+
+  // Timer Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { width: '85%', backgroundColor: 'white', borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: COLORS.text, marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: COLORS.subText, textAlign: 'center', marginBottom: 20 },
+  modalContent: { alignItems: 'center', marginBottom: 20 },
+  timeDisplayBtn: { paddingVertical: 15, paddingHorizontal: 30, backgroundColor: COLORS.inputBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  timeDisplayText: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary },
+  modalActionsRow: { flexDirection: 'row', gap: 12 },
+  modalBtnCancel: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.background, alignItems: 'center' },
+  modalBtnTextCancel: { fontSize: 16, fontWeight: '600', color: COLORS.subText },
+  modalBtnConfirm: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.primary, alignItems: 'center' },
+  modalBtnTextConfirm: { fontSize: 16, fontWeight: '600', color: 'white' },
 });

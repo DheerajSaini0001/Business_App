@@ -78,9 +78,6 @@ export default function CreateAdminScreen({ navigation }) {
             } else {
                 // Customized error message based on common issues
                 let errorMessage = data.message || data.error || "Failed to create admin";
-                if (response.status === 500) {
-                    errorMessage = "Server Error (500).\n\nLikely Cause: The Phone Number is already registered by another admin.\n\nTry using a different unique phone number.";
-                }
                 Alert.alert(`Error (${response.status})`, errorMessage);
             }
         } catch (error) {

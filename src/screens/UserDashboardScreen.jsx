@@ -62,6 +62,37 @@ export default function HomeScreen({ navigation }) {
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [openRecords, setOpenRecords] = useState({});
 
+  // --- LOGOUT CONFIRMATION LOGIC ---
+  const performLogout = async () => {
+    try {
+      // Remove specific items instead of clearing everything to avoid affecting other potential cached data
+      await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("userId");
+      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
+
+  const handleLogoutPress = () => {
+    Alert.alert(
+      "Confirm Logout", // Title
+      "Are you sure you want to log out?", // Message
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Logout Cancelled"),
+          style: "cancel"
+        },
+        {
+          text: "Yes, Logout",
+          onPress: performLogout,
+          style: "destructive" // iOS pe red color dega
+        }
+      ]
+    );
+  };
+
   // --- Fetch User Data ---
   const fetchUser = async () => {
     try {
@@ -70,6 +101,7 @@ export default function HomeScreen({ navigation }) {
 
       if (!token || !storedUserId) {
         setLoading(false);
+        // If tokens are missing initially, we must redirect to login
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
       }
@@ -89,8 +121,13 @@ export default function HomeScreen({ navigation }) {
         if (filterType === 'session') fetchSession(userData._id);
         else fetchDailyData(userData._id);
       } else {
-        await AsyncStorage.clear();
-        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        // Only logout if unauthorized
+        if (res.status === 401 || res.status === 403) {
+          await performLogout();
+        } else {
+          console.error("Fetch user failed:", res.status);
+          // Do not logout for other errors (500, etc.)
+        }
       }
     } catch (err) {
       console.error("User fetch error:", err);
@@ -166,7 +203,6 @@ export default function HomeScreen({ navigation }) {
     setOpenRecords((prev) => ({ ...prev, [sessionId]: !prev[sessionId] }));
   };
 
-  // --- Toggle Deposit View ---
   const toggleDepositView = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // Smooth expand animation
     setShowAllDeposits(!showAllDeposits);
@@ -182,36 +218,6 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     fetchUser();
   }, []);
-
-  // --- LOGOUT CONFIRMATION LOGIC ---
-  const handleLogoutPress = () => {
-    Alert.alert(
-      "Confirm Logout", // Title
-      "Are you sure you want to log out?", // Message
-      [
-        {
-          text: "Cancel",
-          onPress: () => console.log("Logout Cancelled"),
-          style: "cancel"
-        },
-        {
-          text: "Yes, Logout",
-          onPress: performLogout,
-          style: "destructive" // iOS pe red color dega
-        }
-      ]
-    );
-  };
-
-  const performLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("userToken");
-      await AsyncStorage.removeItem("userId");
-      navigation.reset({ index: 0, routes: [{ name: "homeScreen" }] });
-    } catch (error) {
-      console.error("Logout Error:", error);
-    }
-  };
 
   if (loading) {
     return (

@@ -86,6 +86,10 @@ export default function App() {
   // --- Main App Navigator (No 'if loading' return) ---
 
   // --- Main App Navigator ---
+  if (isLoading) {
+    return null; // Native splash screen is visible, so we don't need to render anything JS-side yet.
+  }
+
   return (
     <ThemeProvider>
       <View style={{ flex: 1, paddingTop: StatusBar.currentHeight }}>
